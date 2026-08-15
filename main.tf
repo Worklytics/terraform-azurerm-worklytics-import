@@ -3,19 +3,59 @@ data "azurerm_resource_group" "this" {
 }
 
 locals {
-  create_storage_account = var.storage_account_name == null
-  # Only reuse a container when the caller supplied both account and container names.
-  create_container = var.storage_account_name == null || var.storage_container_name == null
-
   # This is the recommended value from MSFT, as it is what Entra expects in the "aud" claim of
   # the token. See docs:
   # https://learn.microsoft.com/en-us/azure/active-directory/develop/workload-identity-federation-create-trust?pivots=identity-wif-apps-methods-azp#important-considerations-and-restrictions
   federated_identity_audience = "api://AzureADTokenExchange"
 
-  container_name = coalesce(
-    var.storage_container_name,
-    "${replace(var.resource_name_prefix, "_", "-")}container"
+  container_name_prefix = replace(var.resource_name_prefix, "_", "-")
+
+  # Primary singular zone: default create-one path, or when the caller set singular names.
+  include_primary = (
+    length(var.import_containers) == 0
+    || var.storage_account_name != null
+    || var.storage_container_name != null
   )
+
+  import_targets_list = concat(
+    local.include_primary ? [{
+      key                    = "primary"
+      resource_group_name    = var.resource_group_name
+      storage_account_name   = var.storage_account_name
+      storage_container_name = var.storage_container_name
+    }] : [],
+    [
+      for i, loc in var.import_containers : {
+        key = coalesce(
+          loc.key,
+          join("-", compact([loc.storage_account_name, loc.storage_container_name])),
+          format("import-%02d", i)
+        )
+        resource_group_name    = coalesce(loc.resource_group_name, var.resource_group_name)
+        storage_account_name   = loc.storage_account_name
+        storage_container_name = loc.storage_container_name
+      }
+    ]
+  )
+
+  import_targets = {
+    for loc in local.import_targets_list : loc.key => {
+      key                    = loc.key
+      resource_group_name    = loc.resource_group_name
+      storage_account_name   = loc.storage_account_name
+      storage_container_name = loc.storage_container_name
+      create_account         = loc.storage_account_name == null
+      create_container       = loc.storage_account_name == null || loc.storage_container_name == null
+      generated_container_name = coalesce(
+        loc.storage_container_name,
+        loc.key == "primary" ? "${local.container_name_prefix}container" : "${local.container_name_prefix}container-${replace(lower(loc.key), "_", "-")}"
+      )
+    }
+  }
+
+  create_storage_account = anytrue([
+    for t in local.import_targets : t.create_account
+  ])
 }
 
 resource "random_id" "storage_account" {
@@ -27,10 +67,12 @@ resource "random_id" "storage_account" {
 }
 
 data "azurerm_storage_account" "existing" {
-  count = local.create_storage_account ? 0 : 1
+  for_each = {
+    for k, t in local.import_targets : k => t if t.storage_account_name != null
+  }
 
-  name                = var.storage_account_name
-  resource_group_name = var.resource_group_name
+  name                = each.value.storage_account_name
+  resource_group_name = each.value.resource_group_name
 }
 
 # trivy:ignore:AVD-AZU-0012 Public network access is required so Worklytics (GCP) can pull objects.
@@ -67,23 +109,63 @@ resource "azurerm_storage_account" "worklytics" {
 }
 
 locals {
-  storage_account_name = local.create_storage_account ? azurerm_storage_account.worklytics[0].name : var.storage_account_name
-  storage_account_id   = local.create_storage_account ? azurerm_storage_account.worklytics[0].id : data.azurerm_storage_account.existing[0].id
+  created_storage_account_name = local.create_storage_account ? azurerm_storage_account.worklytics[0].name : null
+  created_storage_account_id   = local.create_storage_account ? azurerm_storage_account.worklytics[0].id : null
+
+  import_targets_with_account = {
+    for k, t in local.import_targets : k => merge(t, {
+      resolved_account_name = t.create_account ? local.created_storage_account_name : t.storage_account_name
+      resolved_account_id   = t.create_account ? local.created_storage_account_id : data.azurerm_storage_account.existing[k].id
+    })
+  }
 }
 
-resource "azurerm_storage_container" "worklytics" {
-  count = local.create_container ? 1 : 0
+resource "azurerm_storage_container" "import" {
+  for_each = {
+    for k, t in local.import_targets_with_account : k => t if t.create_container
+  }
 
-  name                  = local.container_name
-  storage_account_id    = local.storage_account_id
+  name                  = each.value.generated_container_name
+  storage_account_id    = each.value.resolved_account_id
   container_access_type = "private"
 }
 
 locals {
-  container_resource_manager_id = (
-    local.create_container
-    ? azurerm_storage_container.worklytics[0].id
-    : "${local.storage_account_id}/blobServices/default/containers/${local.container_name}"
+  resolved_import_targets = {
+    for k, t in local.import_targets_with_account : k => {
+      key                    = k
+      resource_group_name    = t.resource_group_name
+      storage_account_name   = t.resolved_account_name
+      storage_account_id     = t.resolved_account_id
+      storage_container_name = t.generated_container_name
+      storage_container_resource_manager_id = (
+        t.create_container
+        ? azurerm_storage_container.import[k].id
+        : "${t.resolved_account_id}/blobServices/default/containers/${t.generated_container_name}"
+      )
+    }
+  }
+
+  primary_import_key = contains(keys(local.resolved_import_targets), "primary") ? "primary" : sort(keys(local.resolved_import_targets))[0]
+
+  # One delegator assignment per distinct existing account (plus the created account).
+  # Group so two containers on the same account do not produce duplicate for_each keys.
+  existing_import_accounts = {
+    for t in values(local.import_targets) :
+    "${t.resource_group_name}/${t.storage_account_name}" => t...
+    if !t.create_account
+  }
+
+  # Delegator is account-scoped; key by static names so for_each is known at plan time
+  # (account resource IDs are not known until apply when this module creates the account).
+  import_delegator_scopes = merge(
+    local.create_storage_account ? {
+      "__created__" = azurerm_storage_account.worklytics[0].id
+    } : {},
+    {
+      for key, ts in local.existing_import_accounts :
+      "existing-${replace(key, "/", "-")}" => data.azurerm_storage_account.existing[ts[0].key].id
+    }
   )
 }
 
@@ -116,17 +198,21 @@ resource "azuread_application_federated_identity_credential" "worklytics" {
   subject        = var.worklytics_tenant_id
 }
 
-# Read/write blobs in the import container (ingest + status/checkpoint objects).
-resource "azurerm_role_assignment" "role_contributor" {
-  scope                            = local.container_resource_manager_id
+# Read/write blobs in each import container (ingest + status/checkpoint objects).
+resource "azurerm_role_assignment" "import_contributor" {
+  for_each = local.resolved_import_targets
+
+  scope                            = each.value.storage_container_resource_manager_id
   role_definition_name             = "Storage Blob Data Contributor"
   principal_id                     = azuread_service_principal.worklytics.id
   skip_service_principal_aad_check = true
 }
 
 # User Delegation Key via Azure SDK (account-level; keys cannot be requested at container scope).
-resource "azurerm_role_assignment" "role_delegator" {
-  scope                            = local.storage_account_id
+resource "azurerm_role_assignment" "import_delegator" {
+  for_each = local.import_delegator_scopes
+
+  scope                            = each.value
   role_definition_name             = "Storage Blob Delegator"
   principal_id                     = azuread_service_principal.worklytics.id
   skip_service_principal_aad_check = true
@@ -135,28 +221,38 @@ resource "azurerm_role_assignment" "role_delegator" {
 locals {
   tenant_identity_note = var.worklytics_tenant_sa_email == null ? var.worklytics_tenant_id : "${var.worklytics_tenant_sa_email} (${var.worklytics_tenant_id})"
 
+  import_todo_rows = join("\n", [
+    for k, t in local.resolved_import_targets :
+    "  - ${k}: account `${t.storage_account_name}`, container `${t.storage_container_name}`"
+  ])
+
+  primary_import = local.resolved_import_targets[local.primary_import_key]
+
   todo_content = <<EOT
 # Configure Data Import in Worklytics
 
 1. Ensure you're authenticated with Worklytics. Either sign-in at [https://${var.worklytics_host}](https://${var.worklytics_host})
   with your organization's SSO provider *or* request OTP link from your Worklytics support.
-2. Visit `https://${var.worklytics_host}/analytics/data-import/connect?type=AZURE_BLOB_STORAGE&container=${local.container_name}&storageAccount=${local.storage_account_name}&clientId=${azuread_application.worklytics.client_id}&tenantId=${var.azure_tenant_id}`
-3. Review any additional settings and click "Create Data Import".
+2. Visit `https://${var.worklytics_host}/analytics/data-import/connect?type=AZURE_BLOB_STORAGE&container=${local.primary_import.storage_container_name}&storageAccount=${local.primary_import.storage_account_name}&clientId=${azuread_application.worklytics.client_id}&tenantId=${var.azure_tenant_id}`
+3. Review any additional settings and click "Create Data Import". Repeat for any extra containers.
+
+Import landing zones granted to Worklytics:
+${local.import_todo_rows}
 
 Alternatively, you may follow the manual instructions below:
 
 1. Visit [https://${var.worklytics_host}](https://${var.worklytics_host})
   (or login into Worklytics, and navigate to Manage --> Import Data).
 2. Create a new Azure Blob Storage import connection with the following values:
-  - Container Name: ${local.container_name}
-  - Storage Account: ${local.storage_account_name}
+  - Container Name: ${local.primary_import.storage_container_name}
+  - Storage Account: ${local.primary_import.storage_account_name}
   - Client ID: ${azuread_application.worklytics.client_id}
   - Tenant ID: ${var.azure_tenant_id}
   - Worklytics tenant identity: ${local.tenant_identity_note}
 
-Write objects you want Worklytics to ingest into the container. Worklytics authenticates with
+Write objects you want Worklytics to ingest into the container(s). Worklytics authenticates with
 Entra via workload identity federation as the GCP service account above, then reads (and may
-write ingest checkpoints to) the container.
+write ingest checkpoints to) those containers.
 EOT
 }
 

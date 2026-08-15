@@ -35,8 +35,8 @@ variable "azure_tenant_id" {
 variable "resource_group_name" {
   type        = string
   description = <<-EOT
-    Resource group that contains (or will contain) the storage account. Must already exist. If
-    `storage_account_name` is omitted, the created account is placed in this group.
+    Default resource group for created storage and for looking up accounts that do not set their
+    own `resource_group_name`. Must already exist.
   EOT
 }
 
@@ -44,7 +44,7 @@ variable "location" {
   type        = string
   description = <<-EOT
     Azure region for a storage account created by this module. If null, the resource group's
-    location is used. Ignored when `storage_account_name` is provided.
+    location is used. Ignored when no account is created.
   EOT
   default     = null
 }
@@ -52,8 +52,8 @@ variable "location" {
 variable "storage_account_name" {
   type        = string
   description = <<-EOT
-    Existing Azure storage account to use as the import landing zone. If null, this module
-    creates a storage account in `resource_group_name`.
+    Existing Azure storage account for the primary import landing zone. If null and this module
+    is managing a primary zone, a storage account is created in `resource_group_name`.
   EOT
   default     = null
   nullable    = true
@@ -67,9 +67,9 @@ variable "storage_account_name" {
 variable "storage_container_name" {
   type        = string
   description = <<-EOT
-    Existing blob container to use as the import landing zone. If null, this module creates one.
-    Providing both `storage_account_name` and `storage_container_name` skips storage creation
-    entirely; the module only grants Worklytics access.
+    Existing blob container for the primary import landing zone. If null and this module is
+    managing a primary zone, a container is created. Providing both singular names skips
+    primary storage creation; the module only grants Worklytics access.
   EOT
   default     = null
   nullable    = true
@@ -83,6 +83,46 @@ variable "storage_container_name" {
   }
 }
 
+variable "import_containers" {
+  type = list(object({
+    key                    = optional(string)
+    resource_group_name    = optional(string)
+    storage_account_name   = optional(string)
+    storage_container_name = optional(string)
+  }))
+  description = <<-EOT
+    Optional additional import landing zones (Azure blob containers). Use this when the customer
+    has several ingest locations. Each object may omit `storage_account_name` and/or
+    `storage_container_name` to create them (created accounts share one module-managed account).
+
+    The singular `storage_account_name` / `storage_container_name` still describe the primary
+    zone. A primary zone is managed when those singular variables are set *or* when this list is
+    empty (the default create-one-container path). If this list is non-empty and both singular
+    names are null, only the list is used — add a list item with omitted names to also create a
+    landing zone.
+  EOT
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for loc in var.import_containers :
+      loc.storage_account_name == null || can(regex("^[a-z0-9]{3,24}$", loc.storage_account_name))
+    ])
+    error_message = "Each import_containers.storage_account_name must be 3-24 lowercase letters and numbers."
+  }
+
+  validation {
+    condition = alltrue([
+      for loc in var.import_containers :
+      loc.storage_container_name == null || can(regex(
+        "^[a-z0-9]([a-z0-9-]{1,61}[a-z0-9])$",
+        loc.storage_container_name
+      ))
+    ])
+    error_message = "Each import_containers.storage_container_name must be a valid Azure container name."
+  }
+}
+
 variable "owners" {
   type        = set(string)
   description = "Object IDs set as owners of the Entra application created for Worklytics."
@@ -92,7 +132,7 @@ variable "owners" {
 variable "federated_identity_description" {
   type        = string
   description = "Optional description of the federated identity credential."
-  default     = "Allows the Worklytics tenant GCP service account to access this import container."
+  default     = "Allows the Worklytics tenant GCP service account to access import containers."
 }
 
 variable "federated_identity_issuer" {

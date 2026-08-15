@@ -80,17 +80,23 @@ run "creates_storage_when_omitted" {
   }
 
   assert {
-    condition     = length(azurerm_storage_container.worklytics) == 1
+    condition     = length(azurerm_storage_container.import) == 1
     error_message = "Expected a container to be created when storage_container_name is omitted."
   }
 
   assert {
-    condition     = azurerm_role_assignment.role_contributor.role_definition_name == "Storage Blob Data Contributor"
+    condition = alltrue([
+      for ra in azurerm_role_assignment.import_contributor :
+      ra.role_definition_name == "Storage Blob Data Contributor"
+    ])
     error_message = "Worklytics must be granted Storage Blob Data Contributor on the container."
   }
 
   assert {
-    condition     = azurerm_role_assignment.role_delegator.role_definition_name == "Storage Blob Delegator"
+    condition = alltrue([
+      for ra in azurerm_role_assignment.import_delegator :
+      ra.role_definition_name == "Storage Blob Delegator"
+    ])
     error_message = "Worklytics must be granted Storage Blob Delegator on the storage account."
   }
 
@@ -118,7 +124,7 @@ run "reuses_existing_storage_account" {
   }
 
   assert {
-    condition     = length(azurerm_storage_container.worklytics) == 1
+    condition     = length(azurerm_storage_container.import) == 1
     error_message = "Should still create a container when only the account is reused."
   }
 }
@@ -137,7 +143,7 @@ run "reuses_existing_account_and_container" {
   }
 
   assert {
-    condition     = length(azurerm_storage_container.worklytics) == 0
+    condition     = length(azurerm_storage_container.import) == 0
     error_message = "Should not create a container when both account and container names are provided."
   }
 
@@ -180,5 +186,85 @@ run "rejects_invalid_storage_account_name" {
 
   expect_failures = [
     var.storage_account_name,
+  ]
+}
+
+run "grants_access_to_additional_import_containers" {
+  command = plan
+
+  variables {
+    storage_account_name   = "existingacct0001"
+    storage_container_name = "already-there"
+    import_containers = [
+      {
+        storage_account_name   = "existingacct0001"
+        storage_container_name = "second-ingest"
+      }
+    ]
+  }
+
+  assert {
+    condition     = length(azurerm_storage_account.worklytics) == 0
+    error_message = "Should not create a storage account when all import locations already exist."
+  }
+
+  assert {
+    condition     = length(azurerm_storage_container.import) == 0
+    error_message = "Should not create containers when all import locations already exist."
+  }
+
+  assert {
+    condition     = length(azurerm_role_assignment.import_contributor) == 2
+    error_message = "Primary plus additional import containers should each get Contributor."
+  }
+
+  assert {
+    condition     = length(output.import_containers) == 2
+    error_message = "import_containers output should include primary and the extra landing zone."
+  }
+}
+
+run "list_only_skips_created_primary" {
+  command = plan
+
+  variables {
+    import_containers = [
+      {
+        storage_account_name   = "existingacct0001"
+        storage_container_name = "only-from-list"
+      }
+    ]
+  }
+
+  assert {
+    condition     = length(azurerm_storage_account.worklytics) == 0
+    error_message = "List-only existing locations should not create a storage account."
+  }
+
+  assert {
+    condition     = length(azurerm_role_assignment.import_contributor) == 1
+    error_message = "List-only should grant access to exactly the listed containers."
+  }
+
+  assert {
+    condition     = output.storage_container_name == "only-from-list"
+    error_message = "Primary outputs should fall back to the listed container."
+  }
+}
+
+run "rejects_invalid_import_containers_account_name" {
+  command = plan
+
+  variables {
+    import_containers = [
+      {
+        storage_account_name   = "NOT-VALID"
+        storage_container_name = "ok-container"
+      }
+    ]
+  }
+
+  expect_failures = [
+    var.import_containers,
   ]
 }

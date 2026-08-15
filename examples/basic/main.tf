@@ -41,6 +41,7 @@ module "worklytics_import" {
   location                   = var.location
   storage_account_name       = var.storage_account_name
   storage_container_name     = var.storage_container_name
+  import_containers          = var.import_containers
   owners                     = var.owners
   todos_as_local_files       = var.todos_as_local_files
 }
@@ -51,6 +52,10 @@ output "storage_account_name" {
 
 output "storage_container_name" {
   value = module.worklytics_import.storage_container_name
+}
+
+output "import_containers" {
+  value = module.worklytics_import.import_containers
 }
 
 output "application_client_id" {

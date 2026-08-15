@@ -49,6 +49,17 @@ variable "storage_container_name" {
   default     = null
 }
 
+variable "import_containers" {
+  type = list(object({
+    key                    = optional(string)
+    resource_group_name    = optional(string)
+    storage_account_name   = optional(string)
+    storage_container_name = optional(string)
+  }))
+  description = "Optional additional import landing zones."
+  default     = []
+}
+
 variable "owners" {
   type        = set(string)
   description = "Object IDs set as owners of the Entra application."

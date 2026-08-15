@@ -14,11 +14,11 @@ configuration and adapt it to your requirements.
 ## What it provisions
 
 1. **Optional storage** — an Azure storage account and/or blob container, unless you pass existing
-   names.
+   names. Additional ingest locations can be passed via `import_containers`.
 2. **Entra application + service principal** with a federated identity credential that trusts your
    Worklytics tenant's GCP service account (`issuer = https://accounts.google.com`,
    `subject = worklytics_tenant_id`).
-3. **RBAC** so that identity can read and write blobs in the container (`Storage Blob Data
+3. **RBAC** so that identity can read and write blobs in each import container (`Storage Blob Data
    Contributor` on the container, `Storage Blob Delegator` on the account).
 
 Worklytics then exchanges a Google ID token for an Entra access token and pulls objects from the
@@ -71,8 +71,9 @@ provider "azuread" {
 | `worklytics_tenant_id` | yes | | 21-digit unique ID of the Worklytics tenant GCP SA |
 | `azure_tenant_id` | yes | | Entra tenant ID (for instructions / deep-link) |
 | `resource_group_name` | yes | | Existing resource group for the storage account |
-| `storage_account_name` | no | `null` | Reuse this account; otherwise one is created |
-| `storage_container_name` | no | `null` | Reuse this container; otherwise one is created |
+| `storage_account_name` | no | `null` | Reuse this account for the primary zone; otherwise one is created |
+| `storage_container_name` | no | `null` | Reuse this container for the primary zone; otherwise one is created |
+| `import_containers` | no | `[]` | Extra import landing zones (create or reuse each) |
 | `location` | no | RG location | Region used only when creating a storage account |
 | `worklytics_tenant_sa_email` | no | `null` | SA email, documentation only |
 | `resource_name_prefix` | no | `worklytics-import-` | Prefix for created Entra / container names |
@@ -92,7 +93,11 @@ gcloud iam service-accounts describe EMAIL --format='value(uniqueId)'
 The storage account used as the import landing zone (created or reused).
 
 #### `storage_container_name` / `storage_container_resource_manager_id`
-The blob container Worklytics reads from and writes to.
+The primary blob container Worklytics reads from and writes to.
+
+#### `import_containers`
+Map of every import landing zone (the primary zone plus any `import_containers` inputs), keyed by
+target key. Use this when composing extra RBAC or when the customer has several ingest locations.
 
 #### `application_client_id`
 Entra application (client) ID. Worklytics uses this when exchanging a Google ID token for an Azure
@@ -135,6 +140,38 @@ module "worklytics-import" {
 If you omit only `storage_container_name`, the module creates a private container on the existing
 account.
 
+### Multiple import containers
+
+Keep the singular variables for the primary landing zone and pass extra locations:
+
+```hcl
+module "worklytics-import" {
+  source = "Worklytics/worklytics-import/azure"
+
+  worklytics_tenant_id   = "123456789012345678901"
+  azure_tenant_id        = "11111111-1111-1111-1111-111111111111"
+  resource_group_name    = "worklytics"
+  storage_account_name   = "myexistingaccount"
+  storage_container_name = "worklytics-import"
+
+  import_containers = [
+    {
+      storage_account_name   = "myexistingaccount"
+      storage_container_name = "worklytics-import-hris"
+    },
+    {
+      resource_group_name    = "other-rg"
+      storage_account_name   = "anotheraccount"
+      storage_container_name = "worklytics-import-calendar"
+    }
+  ]
+}
+```
+
+If `import_containers` is set and both singular names are omitted, only the list is used (no extra
+created primary). To create a landing zone *and* attach existing ones, include a list item with
+omitted names, or set the singular variables for the created/reused primary.
+
 ### Permissions granted to Worklytics
 
 | Role | Scope | Why |
@@ -156,6 +193,9 @@ we will strive to follow [standard Terraform module structure](https://developer
 and [style conventions](https://developer.hashicorp.com/terraform/language/syntax/style).
 
 See [examples/basic/](examples/basic/) for a simple example of how to use this module.
+
+Maintainers: optional export on the **same** Entra app (non-proxy customers who also want a sink)
+is planned; see [docs/internal/bidirectional-azure-import-export.md](docs/internal/bidirectional-azure-import-export.md).
 
 ### Tests
 
@@ -180,12 +220,14 @@ variables (private repo):
 | `GCP_SERVICE_ACCOUNT` | CI agent SA (e.g. `gh-actions-tf-azure-import@...`) |
 | `ENTRA_ID_CLIENT_ID` | Entra app for GitHub OIDC |
 | `ENTRA_ID_TENANT_ID` | Entra tenant |
-| `AZURE_SUBSCRIPTION_ID` | Subscription used to create the CI resource group / storage |
+| `AZURE_SUBSCRIPTION_ID` | Subscription that contains the CI resource group |
+| `AZURE_RESOURCE_GROUP_NAME` | Pre-created sandbox resource group (Owner scoped to this RG) |
 
 The CI agent SA must be able to impersonate the stand-in tenant SA
 (`w8s-import-tf-ci@worklytics-ci.iam.gserviceaccount.com`). The Entra GitHub OIDC app must be able
-to create resource groups, storage accounts, Entra applications, and role assignments in the CI
-subscription.
+to create storage accounts, Entra applications, and role assignments **in the CI resource group**
+(not subscription-wide). The resource group is provisioned by `worklytics-infra` (`src/org-github`)
+and is delete-locked; workflows must not create or delete it.
 
 (c) 2026 Worklytics, Co
 
