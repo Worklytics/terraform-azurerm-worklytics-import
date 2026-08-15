@@ -80,6 +80,11 @@ run "creates_storage_when_omitted" {
   }
 
   assert {
+    condition     = azurerm_storage_account.worklytics[0].infrastructure_encryption_enabled == true
+    error_message = "Created storage accounts should enable infrastructure encryption."
+  }
+
+  assert {
     condition     = length(azurerm_storage_container.import) == 1
     error_message = "Expected a container to be created when storage_container_name is omitted."
   }

@@ -76,19 +76,22 @@ data "azurerm_storage_account" "existing" {
 }
 
 # trivy:ignore:AVD-AZU-0012 Public network access is required so Worklytics (GCP) can pull objects.
+# trivy:ignore:AVD-AZU-0057 Queue/table analytics logging is not the blob ingest path; Azure Monitor diagnostics need a customer-owned destination.
+# trivy:ignore:AVD-AZU-0058 LRS is intentional for a transient ingest landing zone; GRS is a customer cost/durability choice (pass an existing account).
 resource "azurerm_storage_account" "worklytics" {
   count = local.create_storage_account ? 1 : 0
 
   # Globally unique, valid storage account name. Prefix is not used here because it may
   # contain hyphens and would be truncated if mixed with a uniqueness suffix.
-  name                            = "w8si${random_id.storage_account[0].hex}"
-  resource_group_name             = var.resource_group_name
-  location                        = coalesce(var.location, data.azurerm_resource_group.this.location)
-  account_tier                    = "Standard"
-  account_replication_type        = "LRS"
-  min_tls_version                 = "TLS1_2"
-  https_traffic_only_enabled      = true
-  allow_nested_items_to_be_public = false
+  name                              = "w8si${random_id.storage_account[0].hex}"
+  resource_group_name               = var.resource_group_name
+  location                          = coalesce(var.location, data.azurerm_resource_group.this.location)
+  account_tier                      = "Standard"
+  account_replication_type          = "LRS"
+  infrastructure_encryption_enabled = true
+  min_tls_version                   = "TLS1_2"
+  https_traffic_only_enabled        = true
+  allow_nested_items_to_be_public   = false
 
   blob_properties {
     delete_retention_policy {

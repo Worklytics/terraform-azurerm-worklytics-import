@@ -6,6 +6,9 @@ from a local checkout (GitHub Actions and local iteration).
 - `source = "../../"` tests the code in this repo, not a published version.
 - `backend "local"` keeps CI state on the runner. **Do not use a local backend in
   production.**
+- `azurerm_provider_version_test.tf` holds this example's `required_providers`.
+  CI overwrites that file to pin `azurerm` 4.x vs 5.x; keep constraints out of
+  `main.tf` so init does not see two `required_providers` blocks.
 
 Customer-facing usage (Terraform Registry source, your own providers and remote state) is in:
 

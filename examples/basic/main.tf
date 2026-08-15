@@ -8,24 +8,11 @@ terraform {
   backend "local" {
     path = "terraform.tfstate"
   }
-
-  required_providers {
-    # Storage accounts, blob containers, and Azure RBAC (role assignments).
-    # Floor 4.0: containers are managed via storage_account_id (Resource Manager API).
-    # 3.x used storage_account_name / data-plane APIs, which 4.x deprecated.
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = ">= 4.0"
-    }
-    # Entra ID (Azure AD): application, service principal, and federated identity
-    # credential (Google → Entra WIF). HashiCorp splits this from azurerm; both are
-    # required. There is no azurerm resource for federated identity credentials.
-    azuread = {
-      source  = "hashicorp/azuread"
-      version = ">= 2.47"
-    }
-  }
 }
+
+# Provider version constraints live in azurerm_provider_version_test.tf so the
+# integration workflow can overwrite that file to pin azurerm majors. A second
+# required_providers block here would fail terraform init.
 
 # In real use you likely already have these provider blocks in the root module.
 provider "azurerm" {

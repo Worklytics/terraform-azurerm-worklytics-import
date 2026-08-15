@@ -2,3 +2,11 @@
 # restriction is left to consumers who can compose firewall / private endpoint
 # rules outside the module.
 AVD-AZU-0012
+
+# Queue/table analytics logging is not the blob ingest path; Azure Monitor
+# diagnostics require a customer-owned destination.
+AVD-AZU-0057
+
+# LRS is the intended default for a transient ingest landing zone; customers
+# who need GRS can pass an existing geo-redundant account.
+AVD-AZU-0058
