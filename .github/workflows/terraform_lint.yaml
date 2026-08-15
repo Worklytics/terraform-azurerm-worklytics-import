@@ -1,0 +1,46 @@
+name: terraform_lint
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'rc-*'
+
+jobs:
+  tf_lint:
+    name: 'Terraform lint (on tf ${{ matrix.terraform_version }})'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # fmt is stable across releases; oldest supported + latest is enough
+        terraform_version: [ '~1.3.0', 'latest' ]
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: 'setup Terraform'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ matrix.terraform_version }}
+
+      - name: 'lint Terraform code'
+        # see https://www.terraform.io/cli/commands/fmt
+        run:
+          terraform fmt -check -recursive -diff .
+
+  # Branch protection requires a check named exactly "Terraform lint".
+  lint_gate:
+    name: Terraform lint
+    needs: [tf_lint]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Require lint matrix success
+        run: |
+          echo "tf_lint=${{ needs.tf_lint.result }}"
+          test "${{ needs.tf_lint.result }}" = "success"

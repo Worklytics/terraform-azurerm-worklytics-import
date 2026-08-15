@@ -1,0 +1,206 @@
+name: terraform_integration
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'rc-*'
+
+# Only one integration run per ref; cancel superseded runs so applies don't pile up
+# against the shared CI Azure subscription.
+concurrency:
+  group: tf-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Parallel matrix: init/validate with pinned provider majors. Do NOT apply here —
+  # apply needs a real resource group and would race the shared CI subscription.
+  # Plan is skipped because data.azurerm_resource_group requires the group to exist.
+  tf_compat:
+    name: 'Terraform validate (tf ${{ matrix.terraform_version }}, azurerm ${{ matrix.azurerm_provider_version }})'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        terraform_version: [ '~1.6.0', '~1.9.0', 'latest' ]
+        azurerm_provider_version:
+          - '~> 4.0'
+          - '~> 5.0'
+    permissions:
+      contents: 'read'
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: 'setup Terraform'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ matrix.terraform_version }}
+          terraform_wrapper: false
+
+      - name: 'Pin azurerm provider version for test matrix'
+        working-directory: examples/basic
+        run: |
+          cat > azurerm_provider_version_test.tf << 'TFEOF'
+          terraform {
+            required_providers {
+              azurerm = {
+                source  = "hashicorp/azurerm"
+                version = "${{ matrix.azurerm_provider_version }}"
+              }
+            }
+          }
+          TFEOF
+
+      - name: 'Terraform init / validate'
+        working-directory: examples/basic
+        run: |
+          terraform init
+          terraform validate
+
+  tf_e2e:
+    name: 'Terraform e2e (apply + blob round-trip + destroy)'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    env:
+      CI_SA_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT || vars.GCP_SERVICE_ACCOUNT || 'gh-actions-tf-azure-import@worklytics-corp.iam.gserviceaccount.com' }}
+      GCP_IDENTITY_POOL: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER || vars.GCP_WORKLOAD_IDENTITY_PROVIDER || 'projects/432357880585/locations/global/workloadIdentityPools/github-actions/providers/github' }}
+      EXAMPLE_TENANT_SA_EMAIL: w8s-import-tf-ci@worklytics-ci.iam.gserviceaccount.com
+      ENTRA_ID_CLIENT_ID: ${{ secrets.ENTRA_ID_CLIENT_ID || vars.ENTRA_ID_CLIENT_ID }}
+      ENTRA_ID_TENANT_ID: ${{ secrets.ENTRA_ID_TENANT_ID || vars.ENTRA_ID_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID || vars.AZURE_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: true
+      LOCATION: eastus
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: 'setup Terraform'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: latest
+          terraform_wrapper: false
+
+      - id: 'auth-gcp'
+        name: 'Authenticate to Google Cloud'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_IDENTITY_POOL }}
+          service_account: ${{ env.CI_SA_EMAIL }}
+
+      - name: 'Set up Cloud SDK'
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Authenticate to Azure using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.ENTRA_ID_CLIENT_ID }}
+          tenant-id: ${{ env.ENTRA_ID_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Configure Terraform Azure providers for OIDC
+        run: |
+          echo "ARM_CLIENT_ID=${{ env.ENTRA_ID_CLIENT_ID }}" >> "$GITHUB_ENV"
+          echo "ARM_TENANT_ID=${{ env.ENTRA_ID_TENANT_ID }}" >> "$GITHUB_ENV"
+          echo "ARM_SUBSCRIPTION_ID=${{ env.AZURE_SUBSCRIPTION_ID }}" >> "$GITHUB_ENV"
+
+      - name: Resolve Worklytics tenant SA unique ID
+        id: tenant
+        run: |
+          UNIQUE_ID="$(gcloud iam service-accounts describe "${{ env.EXAMPLE_TENANT_SA_EMAIL }}" \
+            --format='value(uniqueId)')"
+          echo "id=${UNIQUE_ID}" >> "$GITHUB_OUTPUT"
+          echo "Worklytics tenant SA unique ID: ${UNIQUE_ID}"
+
+      - name: Create ephemeral resource group
+        id: rg
+        run: |
+          RG="rg-w8s-import-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          az group create --name "${RG}" --location "${LOCATION}" \
+            --tags purpose=worklytics-import-ci run="${GITHUB_RUN_ID}"
+          echo "name=${RG}" >> "$GITHUB_OUTPUT"
+          CI_SP_OID="$(az ad sp show --id "${ENTRA_ID_CLIENT_ID}" --query id -o tsv 2>/dev/null || true)"
+          echo "ci_sp_oid=${CI_SP_OID}" >> "$GITHUB_OUTPUT"
+
+      - name: 'Terraform - integration test examples/basic apply'
+        id: terraform_apply
+        working-directory: examples/basic
+        run: |
+          PREFIX="ci-w8si-${GITHUB_RUN_ID}-"
+          OWNERS_ARGS=()
+          if [ -n "${{ steps.rg.outputs.ci_sp_oid }}" ]; then
+            OWNERS_ARGS=(-var="owners=[\"${{ steps.rg.outputs.ci_sp_oid }}\"]")
+          fi
+          terraform init
+          terraform apply -auto-approve \
+            -var="azure_subscription_id=${AZURE_SUBSCRIPTION_ID}" \
+            -var="azure_tenant_id=${ENTRA_ID_TENANT_ID}" \
+            -var="resource_group_name=${{ steps.rg.outputs.name }}" \
+            -var="location=${LOCATION}" \
+            -var="worklytics_tenant_id=${{ steps.tenant.outputs.id }}" \
+            -var="worklytics_tenant_sa_email=${EXAMPLE_TENANT_SA_EMAIL}" \
+            -var="resource_name_prefix=${PREFIX}" \
+            -var="todos_as_local_files=false" \
+            "${OWNERS_ARGS[@]}"
+          echo "storage_account_name=$(terraform output -raw storage_account_name)" >> "$GITHUB_OUTPUT"
+          echo "storage_container_name=$(terraform output -raw storage_container_name)" >> "$GITHUB_OUTPUT"
+          echo "application_client_id=$(terraform output -raw application_client_id)" >> "$GITHUB_OUTPUT"
+
+      - name: 'Blob read/write as federated GCP identity'
+        env:
+          CI_RUN: ${{ github.run_id }}_${{ github.run_attempt }}
+        run: |
+          ./test/blob_roundtrip.sh \
+            "${EXAMPLE_TENANT_SA_EMAIL}" \
+            "${{ steps.terraform_apply.outputs.storage_account_name }}" \
+            "${{ steps.terraform_apply.outputs.storage_container_name }}" \
+            "${ENTRA_ID_TENANT_ID}" \
+            "${{ steps.terraform_apply.outputs.application_client_id }}"
+
+      - name: 'Terraform destroy'
+        if: always()
+        working-directory: examples/basic
+        run: |
+          if [ -f terraform.tfstate ] || [ -f terraform.tfstate.backup ]; then
+          PREFIX="ci-w8si-${GITHUB_RUN_ID}-"
+          OWNERS_ARGS=()
+          if [ -n "${{ steps.rg.outputs.ci_sp_oid }}" ]; then
+            OWNERS_ARGS=(-var="owners=[\"${{ steps.rg.outputs.ci_sp_oid }}\"]")
+          fi
+          terraform destroy -auto-approve \
+            -var="azure_subscription_id=${AZURE_SUBSCRIPTION_ID}" \
+            -var="azure_tenant_id=${ENTRA_ID_TENANT_ID}" \
+            -var="resource_group_name=${{ steps.rg.outputs.name }}" \
+            -var="location=${LOCATION}" \
+            -var="worklytics_tenant_id=${{ steps.tenant.outputs.id }}" \
+            -var="worklytics_tenant_sa_email=${EXAMPLE_TENANT_SA_EMAIL}" \
+            -var="resource_name_prefix=${PREFIX}" \
+            -var="todos_as_local_files=false" \
+            "${OWNERS_ARGS[@]}"
+          fi
+
+      - name: Delete ephemeral resource group
+        if: always()
+        run: |
+          RG="${{ steps.rg.outputs.name }}"
+          if [ -n "${RG}" ]; then
+            az group delete --name "${RG}" --yes --no-wait || true
+          fi
+
+  # Branch protection requires a check named exactly "Terraform integration".
+  integration_gate:
+    name: Terraform integration
+    needs: [tf_compat, tf_e2e]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Require plan matrix + e2e success
+        run: |
+          echo "tf_compat=${{ needs.tf_compat.result }}"
+          echo "tf_e2e=${{ needs.tf_e2e.result }}"
+          test "${{ needs.tf_compat.result }}" = "success"
+          test "${{ needs.tf_e2e.result }}" = "success"

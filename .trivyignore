@@ -1,0 +1,4 @@
+# Worklytics (GCP) must reach this account over the public internet; network
+# restriction is left to consumers who can compose firewall / private endpoint
+# rules outside the module.
+AVD-AZU-0012
