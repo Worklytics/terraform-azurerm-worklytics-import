@@ -5,6 +5,11 @@
 
 This module creates infra to support importing data from [Azure Blob Storage] into Worklytics.
 
+It is intended for **non-proxy** Worklytics customers (files or dumps in your Azure tenant that
+Worklytics should pull). If you use Worklytics with a [Psoxy] proxy, do not use this module for
+that path: the [proxy Terraform modules] already provide equivalent functionality for connecting
+sanitized data to Worklytics.
+
 It is intended for the [Terraform Registry](https://registry.terraform.io/modules/Worklytics/worklytics-import/azure/latest)
 (`Worklytics/worklytics-import/azure`).
 
@@ -229,3 +234,5 @@ and is delete-locked; workflows must not create or delete it.
 (c) 2026 Worklytics, Co
 
 [Azure Blob Storage]: https://learn.microsoft.com/en-us/azure/storage/blobs/
+[Psoxy]: https://github.com/Worklytics/psoxy
+[proxy Terraform modules]: https://github.com/Worklytics/psoxy
