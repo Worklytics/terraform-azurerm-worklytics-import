@@ -194,9 +194,6 @@ and [style conventions](https://developer.hashicorp.com/terraform/language/synta
 
 See [examples/basic/](examples/basic/) for a simple example of how to use this module.
 
-Maintainers: optional export on the **same** Entra app (non-proxy customers who also want a sink)
-is planned; see [docs/internal/bidirectional-azure-import-export.md](docs/internal/bidirectional-azure-import-export.md).
-
 ### Tests
 
 | Workflow | What it covers |

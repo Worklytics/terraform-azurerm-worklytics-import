@@ -8,14 +8,14 @@ on:
       - 'rc-*'
 
 # Only one integration run per ref; cancel superseded runs so applies don't pile up
-# against the shared CI Azure subscription.
+# against the shared CI Azure resource group.
 concurrency:
   group: tf-integration-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   # Parallel matrix: init/validate with pinned provider majors. Do NOT apply here —
-  # apply needs a real resource group and would race the shared CI subscription.
+  # apply needs the shared CI resource group and would race other e2e runs.
   # Plan is skipped because data.azurerm_resource_group requires the group to exist.
   tf_compat:
     name: 'Terraform validate (tf ${{ matrix.terraform_version }}, azurerm ${{ matrix.azurerm_provider_version }})'
@@ -73,6 +73,7 @@ jobs:
       ENTRA_ID_CLIENT_ID: ${{ secrets.ENTRA_ID_CLIENT_ID || vars.ENTRA_ID_CLIENT_ID }}
       ENTRA_ID_TENANT_ID: ${{ secrets.ENTRA_ID_TENANT_ID || vars.ENTRA_ID_TENANT_ID }}
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID || vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_RESOURCE_GROUP_NAME: ${{ secrets.AZURE_RESOURCE_GROUP_NAME || vars.AZURE_RESOURCE_GROUP_NAME }}
       ARM_USE_OIDC: true
       LOCATION: eastus
     steps:
@@ -116,12 +117,14 @@ jobs:
           echo "id=${UNIQUE_ID}" >> "$GITHUB_OUTPUT"
           echo "Worklytics tenant SA unique ID: ${UNIQUE_ID}"
 
-      - name: Create ephemeral resource group
+      - name: Use CI sandbox resource group
         id: rg
         run: |
-          RG="rg-w8s-import-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          az group create --name "${RG}" --location "${LOCATION}" \
-            --tags purpose=worklytics-import-ci run="${GITHUB_RUN_ID}"
+          RG="${AZURE_RESOURCE_GROUP_NAME}"
+          if [ -z "${RG}" ]; then
+            echo "AZURE_RESOURCE_GROUP_NAME is not set (org-github must apply first)." >&2
+            exit 1
+          fi
           echo "name=${RG}" >> "$GITHUB_OUTPUT"
           CI_SP_OID="$(az ad sp show --id "${ENTRA_ID_CLIENT_ID}" --query id -o tsv 2>/dev/null || true)"
           echo "ci_sp_oid=${CI_SP_OID}" >> "$GITHUB_OUTPUT"
@@ -181,14 +184,6 @@ jobs:
             -var="resource_name_prefix=${PREFIX}" \
             -var="todos_as_local_files=false" \
             "${OWNERS_ARGS[@]}"
-          fi
-
-      - name: Delete ephemeral resource group
-        if: always()
-        run: |
-          RG="${{ steps.rg.outputs.name }}"
-          if [ -n "${RG}" ]; then
-            az group delete --name "${RG}" --yes --no-wait || true
           fi
 
   # Branch protection requires a check named exactly "Terraform integration".
