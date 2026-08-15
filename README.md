@@ -119,8 +119,11 @@ Rendered when `todos_as_outputs = true`.
 
 This module is meant for use with Terraform 1.3+ and:
 
-- `azurerm` `>= 4.0, < 6`
-- `azuread` `>= 2.47`
+- `azurerm` `>= 4.0` (storage + Azure RBAC)
+- `azuread` `>= 2.47` (Entra app, service principal, federated identity credential)
+
+Both providers are required: HashiCorp splits Azure Resource Manager from Entra ID. This module
+does not configure provider blocks; the caller must.
 
 If you find incompatibilities, please open an issue.
 

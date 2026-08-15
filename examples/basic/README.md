@@ -1,8 +1,16 @@
-# Basic Worklytics Import from Azure Blob Storage Example
+# Basic example (module development / CI)
 
-We don't recommend *direct* use of this example, but rather use it as a reference for how to add
-the Worklytics Import module to your own Terraform configuration or as a working example when
-developing the module itself.
+This directory is **not** a production starter. It exists so we can `terraform apply` the module
+from a local checkout (GitHub Actions and local iteration).
+
+- `source = "../../"` tests the code in this repo, not a published version.
+- `backend "local"` keeps CI state on the runner. **Do not use a local backend in
+  production.**
+
+Customer-facing usage (Terraform Registry source, your own providers and remote state) is in:
+
+- the [root README](../../README.md)
+- [examples/basic-remote](../basic-remote/)
 
 ## Usage for Development
 

@@ -1,16 +1,25 @@
-# basic example of using this module; really as much for dev/testing as a real example of practical
-# usage
+# Development / CI example only. Customers should copy from the root README or
+# examples/basic-remote/ (Terraform Registry source), not this relative path.
 
 terraform {
+  # Local state is convenient for iterating on this repo and for GitHub Actions e2e.
+  # Do NOT use a local backend in production; use remote state (Terraform Cloud, azurerm,
+  # GCS, S3, etc.) so state is shared, locked, and backed up.
   backend "local" {
     path = "terraform.tfstate"
   }
 
   required_providers {
+    # Storage accounts, blob containers, and Azure RBAC (role assignments).
+    # Floor 4.0: containers are managed via storage_account_id (Resource Manager API).
+    # 3.x used storage_account_name / data-plane APIs, which 4.x deprecated.
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">= 4.0, < 6"
+      version = ">= 4.0"
     }
+    # Entra ID (Azure AD): application, service principal, and federated identity
+    # credential (Google → Entra WIF). HashiCorp splits this from azurerm; both are
+    # required. There is no azurerm resource for federated identity credentials.
     azuread = {
       source  = "hashicorp/azuread"
       version = ">= 2.47"
@@ -18,8 +27,7 @@ terraform {
   }
 }
 
-# provider just for example purposes; in real use, you likely already have azurerm/azuread
-# provider blocks in your terraform configuration
+# In real use you likely already have these provider blocks in the root module.
 provider "azurerm" {
   features {}
 
@@ -31,6 +39,9 @@ provider "azuread" {
 }
 
 module "worklytics_import" {
+  # Relative source so CI tests *this* checkout. Published usage:
+  #   source  = "Worklytics/worklytics-import/azure"
+  #   version = "~> 0.1.0"
   source = "../../"
 
   resource_name_prefix       = var.resource_name_prefix

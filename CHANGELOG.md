@@ -16,4 +16,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Storage Blob Data Contributor` on the container and `Storage Blob Delegator` on the account.
 - Native `terraform test` unit tests (mocked providers) and a GitHub Actions integration test that
   applies the module in Azure and round-trips a blob as the federated GCP identity.
-- Requires Terraform 1.3+ and `azurerm` 4.x/5.x.
+- Requires Terraform 1.3+, `azurerm` >= 4.0, and `azuread` >= 2.47.
