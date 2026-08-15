@@ -202,6 +202,21 @@ and [style conventions](https://developer.hashicorp.com/terraform/language/synta
 
 See [examples/basic/](examples/basic/) for a simple example of how to use this module.
 
+### Releasing
+
+Registry versions are **git tags** (`vX.Y.Z`) on `main`, not GitHub Releases. After a change is on
+`main` and CI is green:
+
+```bash
+./tools/release.sh v0.1.0 --wait
+```
+
+That tags the current `origin/main` commit and pushes the tag. The tag-triggered workflow creates
+the GitHub Release (notes / README badge). First-time listing on
+[registry.terraform.io](https://registry.terraform.io/modules/Worklytics/worklytics-import/azure)
+is a one-time Publish in the HashiCorp UI (`Worklytics/worklytics-import/azure`); later tags are
+picked up by the Registry webhook.
+
 ### Tests
 
 | Workflow | What it covers |
