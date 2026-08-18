@@ -1,7 +1,7 @@
 # Worklytics Import from Azure Terraform Module
 
-[![Latest Release](https://img.shields.io/github/v/release/Worklytics/terraform-azure-worklytics-import)](https://github.com/Worklytics/terraform-azure-worklytics-import/releases/latest)
-[![tests](https://img.shields.io/github/actions/workflow/status/Worklytics/terraform-azure-worklytics-import/terraform_integration.yaml?label=tests)](https://github.com/Worklytics/terraform-azure-worklytics-import/actions?query=branch%3Amain)
+[![Latest Release](https://img.shields.io/github/v/release/Worklytics/terraform-azurerm-worklytics-import)](https://github.com/Worklytics/terraform-azurerm-worklytics-import/releases/latest)
+[![tests](https://img.shields.io/github/actions/workflow/status/Worklytics/terraform-azurerm-worklytics-import/terraform_integration.yaml?label=tests)](https://github.com/Worklytics/terraform-azurerm-worklytics-import/actions?query=branch%3Amain)
 
 This module creates infra to support importing data from [Azure Blob Storage] into Worklytics.
 
@@ -10,8 +10,8 @@ Worklytics should pull). If you use Worklytics with a [Psoxy] proxy, do not use 
 that path: the [proxy Terraform modules] already provide equivalent functionality for connecting
 sanitized data to Worklytics.
 
-It is intended for the [Terraform Registry](https://registry.terraform.io/modules/Worklytics/worklytics-import/azure/latest)
-(`Worklytics/worklytics-import/azure`).
+It is intended for the [Terraform Registry](https://registry.terraform.io/modules/Worklytics/worklytics-import/azurerm/latest)
+(`Worklytics/worklytics-import/azurerm`).
 
 If it does not meet your needs, feel free to directly copy the `main.tf` file into your own Terraform
 configuration and adapt it to your requirements.
@@ -33,8 +33,8 @@ container (and may write ingest checkpoints).
 
 from Terraform registry (once published):
 ```hcl
-module "worklytics-import" {
-  source  = "Worklytics/worklytics-import/azure"
+module "worklytics_import" {
+  source  = "Worklytics/worklytics-import/azurerm"
   version = "~> 0.1.0"
 
   # numeric ID of your Worklytics Tenant SA (21-digit unique ID, not the email)
@@ -46,8 +46,8 @@ module "worklytics-import" {
 
 via GitHub:
 ```hcl
-module "worklytics-import" {
-  source = "git::https://github.com/worklytics/terraform-azure-worklytics-import/?ref=v0.1.0"
+module "worklytics_import" {
+  source = "git::https://github.com/worklytics/terraform-azurerm-worklytics-import/?ref=v0.1.0"
 
   worklytics_tenant_id = "123456789012345678901"
   azure_tenant_id      = "11111111-1111-1111-1111-111111111111"
@@ -134,8 +134,8 @@ If you find incompatibilities, please open an issue.
 Pass both names to skip storage creation and only grant Worklytics access:
 
 ```hcl
-module "worklytics-import" {
-  source = "Worklytics/worklytics-import/azure"
+module "worklytics_import" {
+  source = "Worklytics/worklytics-import/azurerm"
 
   worklytics_tenant_id   = "123456789012345678901"
   azure_tenant_id        = "11111111-1111-1111-1111-111111111111"
@@ -153,8 +153,8 @@ account.
 Keep the singular variables for the primary landing zone and pass extra locations:
 
 ```hcl
-module "worklytics-import" {
-  source = "Worklytics/worklytics-import/azure"
+module "worklytics_import" {
+  source = "Worklytics/worklytics-import/azurerm"
 
   worklytics_tenant_id   = "123456789012345678901"
   azure_tenant_id        = "11111111-1111-1111-1111-111111111111"
@@ -213,8 +213,8 @@ Registry versions are **git tags** (`vX.Y.Z`) on `main`, not GitHub Releases. Af
 
 That tags the current `origin/main` commit and pushes the tag. The tag-triggered workflow creates
 the GitHub Release (notes / README badge). First-time listing on
-[registry.terraform.io](https://registry.terraform.io/modules/Worklytics/worklytics-import/azure)
-is a one-time Publish in the HashiCorp UI (`Worklytics/worklytics-import/azure`); later tags are
+[registry.terraform.io](https://registry.terraform.io/modules/Worklytics/worklytics-import/azurerm)
+is a one-time Publish in the HashiCorp UI (`Worklytics/worklytics-import/azurerm`); later tags are
 picked up by the Registry webhook.
 
 ### Tests

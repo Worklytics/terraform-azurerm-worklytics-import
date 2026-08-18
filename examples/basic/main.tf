@@ -27,7 +27,7 @@ provider "azuread" {
 
 module "worklytics_import" {
   # Relative source so CI tests *this* checkout. Published usage:
-  #   source  = "Worklytics/worklytics-import/azure"
+  #   source  = "Worklytics/worklytics-import/azurerm"
   #   version = "~> 0.1.0"
   source = "../../"
 

@@ -1,7 +1,7 @@
 # example of consuming this module from the Terraform Registry once published
 
-module "worklytics-import" {
-  source  = "Worklytics/worklytics-import/azure"
+module "worklytics_import" {
+  source  = "Worklytics/worklytics-import/azurerm"
   version = "~> 0.1.0"
 
   # numeric ID of your Worklytics Tenant SA (21-digit unique ID, not the email)
