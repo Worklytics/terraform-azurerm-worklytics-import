@@ -202,12 +202,12 @@ resource "azuread_application_federated_identity_credential" "worklytics" {
 }
 
 # Read/write blobs in each import container (ingest + status/checkpoint objects).
+# azuread 3.x `id` is `/servicePrincipals/{guid}`; Azure RBAC requires the object GUID.
 resource "azurerm_role_assignment" "import_contributor" {
   for_each = local.resolved_import_targets
 
   scope                            = each.value.storage_container_resource_manager_id
   role_definition_name             = "Storage Blob Data Contributor"
-  # azuread 3.x `id` is `/servicePrincipals/{guid}`; Azure RBAC requires the object GUID.
   principal_id                     = azuread_service_principal.worklytics.object_id
   skip_service_principal_aad_check = true
 }
