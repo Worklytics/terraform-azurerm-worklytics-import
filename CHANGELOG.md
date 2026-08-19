@@ -21,3 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Requires Terraform 1.3+, `azurerm` >= 4.0, and `azuread` >= 2.47.
 - Published as `Worklytics/worklytics-import/azurerm`
   (`terraform-azurerm-worklytics-import`), matching the HashiCorp Azure provider slug.
+
+### Fixed
+- Azure RBAC assignments use the service principal object GUID (`object_id`). azuread 3.x
+  `id` is a Graph resource path (`/servicePrincipals/{guid}`), which Azure rejects.

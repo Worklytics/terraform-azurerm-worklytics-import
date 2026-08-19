@@ -32,7 +32,7 @@ output "application_client_id" {
 }
 
 output "service_principal_object_id" {
-  value       = azuread_service_principal.worklytics.id
+  value       = azuread_service_principal.worklytics.object_id
   description = "Object ID of the Entra service principal granted blob access. Useful for composing extra RBAC."
 }
 

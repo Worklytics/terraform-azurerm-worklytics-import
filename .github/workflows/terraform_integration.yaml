@@ -167,6 +167,8 @@ jobs:
       - name: 'Terraform destroy'
         if: always()
         working-directory: examples/basic
+        env:
+          CI_RG: ${{ steps.rg.outputs.name }}
         run: |
           if [ -f terraform.tfstate ] || [ -f terraform.tfstate.backup ]; then
           PREFIX="ci-w8si-${GITHUB_RUN_ID}-"
@@ -174,10 +176,26 @@ jobs:
           if [ -n "${{ steps.rg.outputs.ci_sp_oid }}" ]; then
             OWNERS_ARGS=(-var="owners=[\"${{ steps.rg.outputs.ci_sp_oid }}\"]")
           fi
+          # CanNotDelete on the sandbox RG is inherited by children, so destroy
+          # cannot delete the storage account/container until the lock is lifted.
+          # Restore it afterwards so the RG itself stays protected.
+          restore_ci_rg_lock() {
+            if [ -n "${CI_RG}" ]; then
+              az lock create --name ci-rg-cannot-delete \
+                --resource-group "${CI_RG}" \
+                --lock-type CanNotDelete \
+                --notes "Public-repo CI may manage resources in this RG but must not delete the RG." \
+                >/dev/null || true
+            fi
+          }
+          trap restore_ci_rg_lock EXIT
+          if [ -n "${CI_RG}" ]; then
+            az lock delete --name ci-rg-cannot-delete --resource-group "${CI_RG}" || true
+          fi
           terraform destroy -auto-approve \
             -var="azure_subscription_id=${AZURE_SUBSCRIPTION_ID}" \
             -var="azure_tenant_id=${ENTRA_ID_TENANT_ID}" \
-            -var="resource_group_name=${{ steps.rg.outputs.name }}" \
+            -var="resource_group_name=${CI_RG}" \
             -var="location=${LOCATION}" \
             -var="worklytics_tenant_id=${{ steps.tenant.outputs.id }}" \
             -var="worklytics_tenant_sa_email=${EXAMPLE_TENANT_SA_EMAIL}" \

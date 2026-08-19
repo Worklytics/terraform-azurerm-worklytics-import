@@ -207,7 +207,8 @@ resource "azurerm_role_assignment" "import_contributor" {
 
   scope                            = each.value.storage_container_resource_manager_id
   role_definition_name             = "Storage Blob Data Contributor"
-  principal_id                     = azuread_service_principal.worklytics.id
+  # azuread 3.x `id` is `/servicePrincipals/{guid}`; Azure RBAC requires the object GUID.
+  principal_id                     = azuread_service_principal.worklytics.object_id
   skip_service_principal_aad_check = true
 }
 
@@ -217,7 +218,7 @@ resource "azurerm_role_assignment" "import_delegator" {
 
   scope                            = each.value
   role_definition_name             = "Storage Blob Delegator"
-  principal_id                     = azuread_service_principal.worklytics.id
+  principal_id                     = azuread_service_principal.worklytics.object_id
   skip_service_principal_aad_check = true
 }
 
