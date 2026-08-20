@@ -18,7 +18,7 @@ configuration and adapt it to your requirements.
 
 ## What it provisions
 
-1. **Optional storage** — an Azure storage account and/or blob container, unless you pass existing
+1. **Storage (Optional)** — an Azure storage account and/or blob container, unless you pass existing
    names. Additional ingest locations can be passed via `import_containers`.
 2. **Entra application + service principal** with a federated identity credential that trusts your
    Worklytics tenant's GCP service account (`issuer = https://accounts.google.com`,
