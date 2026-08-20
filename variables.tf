@@ -57,7 +57,7 @@ variable "import_containers" {
     storage_container_name = optional(string)
   }))
   description = <<-EOT
-    Import landing zones (Azure blob containers). At least one is required. The default is a
+    Blob containers Worklytics will import from. At least one is required. The default is a
     single created account and container.
 
     Each object may omit `storage_account_name` and/or `storage_container_name` to create them
@@ -70,7 +70,7 @@ variable "import_containers" {
 
   validation {
     condition     = length(var.import_containers) >= 1
-    error_message = "`import_containers` must contain at least one landing zone."
+    error_message = "`import_containers` must contain at least one container."
   }
 
   validation {

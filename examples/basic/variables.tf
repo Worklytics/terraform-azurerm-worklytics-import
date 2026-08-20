@@ -44,7 +44,7 @@ variable "import_containers" {
     storage_account_name   = optional(string)
     storage_container_name = optional(string)
   }))
-  description = "Import landing zones. Default creates one account and container."
+  description = "Blob containers Worklytics will import from. The default creates one storage account and container."
   default     = [{}]
 }
 

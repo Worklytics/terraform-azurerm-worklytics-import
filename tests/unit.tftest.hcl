@@ -252,7 +252,7 @@ run "grants_access_to_additional_import_containers" {
 
   assert {
     condition     = length(output.import_containers) == 2
-    error_message = "import_containers output should include every listed landing zone."
+    error_message = "import_containers output should include every listed container."
   }
 }
 

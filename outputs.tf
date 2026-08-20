@@ -21,7 +21,7 @@ output "storage_container_resource_manager_id" {
 output "import_containers" {
   value       = local.resolved_import_targets
   description = <<-EOT
-    Map of all import landing zones keyed by target key. Each value has account name/id,
+    Map of all import containers keyed by target key. Each value has account name/id,
     container name, and container ARM id.
   EOT
 }

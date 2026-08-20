@@ -8,9 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - Unreleased
 
 ### Added
-- Initial module to set up an Azure Blob Storage landing zone for importing data into Worklytics.
+- Initial module to set up Azure Blob Storage containers for importing data into Worklytics.
 - Optional creation of a storage account and/or private blob containers via `import_containers`
-  (at least one landing zone; omit names to create, or pass existing names to reuse).
+  (at least one container; omit names to create, or pass existing names to reuse).
 - Entra application, service principal, and Google → Entra federated identity credential keyed by
   the Worklytics tenant's 21-digit GCP service account unique ID.
 - `Storage Blob Data Contributor` on each container and `Storage Blob Delegator` on each account.

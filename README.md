@@ -76,7 +76,7 @@ provider "azuread" {
 | `worklytics_tenant_id` | yes | | 21-digit unique ID of the Worklytics tenant GCP SA |
 | `azure_tenant_id` | yes | | Entra tenant ID (for instructions / deep-link) |
 | `resource_group_name` | yes | | Existing resource group for created storage and lookups |
-| `import_containers` | no | `[{}]` | Landing zones; omit names to create, or pass existing names to reuse. At least one required |
+| `import_containers` | no | `[{}]` | Blob containers to import from; omit names to create, or pass existing names to reuse. At least one required |
 | `blob_soft_delete_retention_days` | no | `30` | Soft-delete recovery window on a *created* account (not a live-object TTL) |
 | `location` | no | RG location | Region used only when creating a storage account |
 | `worklytics_tenant_sa_email` | no | `null` | SA email, documentation only |
@@ -100,7 +100,7 @@ The storage account for the first `import_containers` entry (created or reused).
 The blob container for the first `import_containers` entry.
 
 #### `import_containers`
-Map of every import landing zone, keyed by target key. Use this when composing extra RBAC or when
+Map of every import container, keyed by target key. Use this when composing extra RBAC or when
 the customer has several ingest locations.
 
 #### `application_client_id`
@@ -154,8 +154,8 @@ account.
 
 ### Multiple import containers
 
-Pass every landing zone in `import_containers`. Omit names on an item to create that zone; pass
-both names to reuse an existing container:
+Pass every import container in `import_containers`. Omit names on an item to create that
+container; pass both names to reuse an existing one:
 
 ```hcl
 module "worklytics_import" {

@@ -62,7 +62,7 @@ data "azurerm_storage_account" "existing" {
 
 # trivy:ignore:AVD-AZU-0012 Public network access is required so Worklytics (GCP) can pull objects.
 # trivy:ignore:AVD-AZU-0057 Queue/table analytics logging is not the blob ingest path; Azure Monitor diagnostics need a customer-owned destination.
-# trivy:ignore:AVD-AZU-0058 LRS is intentional for a transient ingest landing zone; GRS is a customer cost/durability choice (pass an existing account).
+# trivy:ignore:AVD-AZU-0058 LRS is intentional for transient ingest storage; GRS is a customer cost/durability choice (pass an existing account).
 resource "azurerm_storage_account" "worklytics" {
   count = local.create_storage_account ? 1 : 0
 
@@ -245,14 +245,14 @@ locals {
 2. Open each connect URL below. Choose a parser (or define a custom one) and click Connect:
 ${local.connect_todo_rows}
 
-Import landing zones granted to Worklytics:
+Import containers granted to Worklytics:
 ${local.import_todo_rows}
 
 Alternatively, you may follow the manual instructions below:
 
 1. Visit [https://${var.worklytics_host}](https://${var.worklytics_host})
   (or login into Worklytics, and navigate to Manage --> Import Data).
-2. Create an Azure Blob Storage import connection for each landing zone:
+2. Create an Azure Blob Storage import connection for each container:
 ${local.manual_todo_rows}
   Shared values for every connection:
   - Client ID: ${azuread_application.worklytics.client_id}

@@ -7,6 +7,6 @@ AVD-AZU-0012
 # diagnostics require a customer-owned destination.
 AVD-AZU-0057
 
-# LRS is the intended default for a transient ingest landing zone; customers
+# LRS is the intended default for transient ingest storage; customers
 # who need GRS can pass an existing geo-redundant account.
 AVD-AZU-0058
