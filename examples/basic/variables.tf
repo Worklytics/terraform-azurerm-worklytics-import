@@ -37,18 +37,6 @@ variable "location" {
   default     = null
 }
 
-variable "storage_account_name" {
-  type        = string
-  description = "Existing storage account to reuse. If null, the module creates one."
-  default     = null
-}
-
-variable "storage_container_name" {
-  type        = string
-  description = "Existing container to reuse. If null, the module creates one."
-  default     = null
-}
-
 variable "import_containers" {
   type = list(object({
     key                    = optional(string)
@@ -56,8 +44,8 @@ variable "import_containers" {
     storage_account_name   = optional(string)
     storage_container_name = optional(string)
   }))
-  description = "Optional additional import landing zones."
-  default     = []
+  description = "Import landing zones. Default creates one account and container."
+  default     = [{}]
 }
 
 variable "owners" {

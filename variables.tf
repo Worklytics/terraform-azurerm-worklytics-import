@@ -49,40 +49,6 @@ variable "location" {
   default     = null
 }
 
-variable "storage_account_name" {
-  type        = string
-  description = <<-EOT
-    Existing Azure storage account for the primary import landing zone. If null and this module
-    is managing a primary zone, a storage account is created in `resource_group_name`.
-  EOT
-  default     = null
-  nullable    = true
-
-  validation {
-    condition     = var.storage_account_name == null || can(regex("^[a-z0-9]{3,24}$", var.storage_account_name))
-    error_message = "`storage_account_name` must be 3-24 lowercase letters and numbers."
-  }
-}
-
-variable "storage_container_name" {
-  type        = string
-  description = <<-EOT
-    Existing blob container for the primary import landing zone. If null and this module is
-    managing a primary zone, a container is created. Providing both singular names skips
-    primary storage creation; the module only grants Worklytics access.
-  EOT
-  default     = null
-  nullable    = true
-
-  validation {
-    condition = var.storage_container_name == null || can(regex(
-      "^[a-z0-9]([a-z0-9-]{1,61}[a-z0-9])$",
-      var.storage_container_name
-    ))
-    error_message = "`storage_container_name` must be 3-63 chars of lowercase letters, numbers, and hyphens."
-  }
-}
-
 variable "import_containers" {
   type = list(object({
     key                    = optional(string)
@@ -91,17 +57,21 @@ variable "import_containers" {
     storage_container_name = optional(string)
   }))
   description = <<-EOT
-    Optional additional import landing zones (Azure blob containers). Use this when the customer
-    has several ingest locations. Each object may omit `storage_account_name` and/or
-    `storage_container_name` to create them (created accounts share one module-managed account).
+    Import landing zones (Azure blob containers). At least one is required. The default is a
+    single created account and container.
 
-    The singular `storage_account_name` / `storage_container_name` still describe the primary
-    zone. A primary zone is managed when those singular variables are set *or* when this list is
-    empty (the default create-one-container path). If this list is non-empty and both singular
-    names are null, only the list is used — add a list item with omitted names to also create a
-    landing zone.
+    Each object may omit `storage_account_name` and/or `storage_container_name` to create them
+    (created accounts share one module-managed account). Pass both names to reuse an existing
+    container and only grant Worklytics access. Optional `key` is used in outputs, TODOs, and
+    generated container names; optional `resource_group_name` overrides the module default when
+    looking up an existing account.
   EOT
-  default     = []
+  default     = [{}]
+
+  validation {
+    condition     = length(var.import_containers) >= 1
+    error_message = "`import_containers` must contain at least one landing zone."
+  }
 
   validation {
     condition = alltrue([
@@ -120,6 +90,21 @@ variable "import_containers" {
       ))
     ])
     error_message = "Each import_containers.storage_container_name must be a valid Azure container name."
+  }
+}
+
+variable "blob_soft_delete_retention_days" {
+  type        = number
+  description = <<-EOT
+    Soft-delete retention (days) on a storage account *created* by this module. This is the
+    recovery window after a blob is deleted; it does not expire live objects. Ignored when
+    reusing an existing account.
+  EOT
+  default     = 30
+
+  validation {
+    condition     = var.blob_soft_delete_retention_days >= 1 && var.blob_soft_delete_retention_days <= 365
+    error_message = "`blob_soft_delete_retention_days` must be between 1 and 365."
   }
 }
 

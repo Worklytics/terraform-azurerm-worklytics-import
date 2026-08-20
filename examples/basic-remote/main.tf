@@ -10,6 +10,9 @@ module "worklytics_import" {
   azure_tenant_id     = "11111111-1111-1111-1111-111111111111"
   resource_group_name = "worklytics"
 
-  # omit storage_account_name to create an account in the resource group
-  # storage_account_name = "myexistingaccount"
+  # omit names in import_containers to create an account and container
+  # import_containers = [{
+  #   storage_account_name   = "myexistingaccount"
+  #   storage_container_name = "worklytics-import"
+  # }]
 }

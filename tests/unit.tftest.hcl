@@ -77,7 +77,7 @@ run "creates_storage_when_omitted" {
 
   assert {
     condition     = length(azurerm_storage_account.worklytics) == 1
-    error_message = "Expected a storage account to be created when storage_account_name is omitted."
+    error_message = "Expected a storage account to be created when import_containers omits account names."
   }
 
   assert {
@@ -87,7 +87,7 @@ run "creates_storage_when_omitted" {
 
   assert {
     condition     = length(azurerm_storage_container.import) == 1
-    error_message = "Expected a container to be created when storage_container_name is omitted."
+    error_message = "Expected a container to be created when import_containers omits container names."
   }
 
   assert {
@@ -121,7 +121,11 @@ run "reuses_existing_storage_account" {
   command = plan
 
   variables {
-    storage_account_name = "existingacct0001"
+    import_containers = [
+      {
+        storage_account_name = "existingacct0001"
+      }
+    ]
   }
 
   assert {
@@ -139,8 +143,12 @@ run "reuses_existing_account_and_container" {
   command = plan
 
   variables {
-    storage_account_name   = "existingacct0001"
-    storage_container_name = "already-there"
+    import_containers = [
+      {
+        storage_account_name   = "existingacct0001"
+        storage_container_name = "already-there"
+      }
+    ]
   }
 
   assert {
@@ -187,11 +195,27 @@ run "rejects_invalid_storage_account_name" {
   command = plan
 
   variables {
-    storage_account_name = "NOT-VALID"
+    import_containers = [
+      {
+        storage_account_name = "NOT-VALID"
+      }
+    ]
   }
 
   expect_failures = [
-    var.storage_account_name,
+    var.import_containers,
+  ]
+}
+
+run "rejects_empty_import_containers" {
+  command = plan
+
+  variables {
+    import_containers = []
+  }
+
+  expect_failures = [
+    var.import_containers,
   ]
 }
 
@@ -199,9 +223,11 @@ run "grants_access_to_additional_import_containers" {
   command = plan
 
   variables {
-    storage_account_name   = "existingacct0001"
-    storage_container_name = "already-there"
     import_containers = [
+      {
+        storage_account_name   = "existingacct0001"
+        storage_container_name = "already-there"
+      },
       {
         storage_account_name   = "existingacct0001"
         storage_container_name = "second-ingest"
@@ -221,16 +247,16 @@ run "grants_access_to_additional_import_containers" {
 
   assert {
     condition     = length(azurerm_role_assignment.import_contributor) == 2
-    error_message = "Primary plus additional import containers should each get Contributor."
+    error_message = "Each import container should get Contributor."
   }
 
   assert {
     condition     = length(output.import_containers) == 2
-    error_message = "import_containers output should include primary and the extra landing zone."
+    error_message = "import_containers output should include every listed landing zone."
   }
 }
 
-run "list_only_skips_created_primary" {
+run "list_only_skips_created_storage" {
   command = plan
 
   variables {
@@ -244,17 +270,57 @@ run "list_only_skips_created_primary" {
 
   assert {
     condition     = length(azurerm_storage_account.worklytics) == 0
-    error_message = "List-only existing locations should not create a storage account."
+    error_message = "Existing listed locations should not create a storage account."
   }
 
   assert {
     condition     = length(azurerm_role_assignment.import_contributor) == 1
-    error_message = "List-only should grant access to exactly the listed containers."
+    error_message = "Should grant access to exactly the listed containers."
   }
 
   assert {
     condition     = output.storage_container_name == "only-from-list"
-    error_message = "Primary outputs should fall back to the listed container."
+    error_message = "Convenience outputs should use the first listed container."
+  }
+}
+
+run "todo_uses_azure_import_connect_path" {
+  command = apply
+
+  variables {
+    todos_as_outputs = true
+    import_containers = [
+      {
+        key                    = "hris"
+        storage_account_name   = "existingacct0001"
+        storage_container_name = "worklytics-import-hris"
+      },
+      {
+        key                    = "badge"
+        storage_account_name   = "existingacct0001"
+        storage_container_name = "worklytics-import-badge"
+      }
+    ]
+  }
+
+  assert {
+    condition     = strcontains(output.todo_markdown, "/analytics/connect/azure-import?")
+    error_message = "TODO should deep-link to /analytics/connect/azure-import."
+  }
+
+  assert {
+    condition     = strcontains(output.todo_markdown, "container=worklytics-import-hris")
+    error_message = "TODO should include a connect URL for each container."
+  }
+
+  assert {
+    condition     = strcontains(output.todo_markdown, "container=worklytics-import-badge")
+    error_message = "TODO should include a connect URL for each container."
+  }
+
+  assert {
+    condition     = strcontains(output.todo_markdown, "Choose a parser")
+    error_message = "TODO should tell the customer to choose a parser."
   }
 }
 

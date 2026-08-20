@@ -10,33 +10,18 @@ locals {
 
   container_name_prefix = replace(var.resource_name_prefix, "_", "-")
 
-  # Primary singular zone: default create-one path, or when the caller set singular names.
-  include_primary = (
-    length(var.import_containers) == 0
-    || var.storage_account_name != null
-    || var.storage_container_name != null
-  )
-
-  import_targets_list = concat(
-    local.include_primary ? [{
-      key                    = "primary"
-      resource_group_name    = var.resource_group_name
-      storage_account_name   = var.storage_account_name
-      storage_container_name = var.storage_container_name
-    }] : [],
-    [
-      for i, loc in var.import_containers : {
-        key = coalesce(
-          loc.key,
-          join("-", compact([loc.storage_account_name, loc.storage_container_name])),
-          format("import-%02d", i)
-        )
-        resource_group_name    = coalesce(loc.resource_group_name, var.resource_group_name)
-        storage_account_name   = loc.storage_account_name
-        storage_container_name = loc.storage_container_name
-      }
-    ]
-  )
+  import_targets_list = [
+    for i, loc in var.import_containers : {
+      key = coalesce(
+        loc.key,
+        join("-", compact([loc.storage_account_name, loc.storage_container_name])),
+        i == 0 ? "import" : format("import-%02d", i)
+      )
+      resource_group_name    = coalesce(loc.resource_group_name, var.resource_group_name)
+      storage_account_name   = loc.storage_account_name
+      storage_container_name = loc.storage_container_name
+    }
+  ]
 
   import_targets = {
     for loc in local.import_targets_list : loc.key => {
@@ -48,7 +33,7 @@ locals {
       create_container       = loc.storage_account_name == null || loc.storage_container_name == null
       generated_container_name = coalesce(
         loc.storage_container_name,
-        loc.key == "primary" ? "${local.container_name_prefix}container" : "${local.container_name_prefix}container-${replace(lower(loc.key), "_", "-")}"
+        loc.key == "import" ? "${local.container_name_prefix}container" : "${local.container_name_prefix}container-${replace(lower(loc.key), "_", "-")}"
       )
     }
   }
@@ -94,8 +79,9 @@ resource "azurerm_storage_account" "worklytics" {
   allow_nested_items_to_be_public   = false
 
   blob_properties {
+    # Soft-delete recovery window, not a TTL for live objects.
     delete_retention_policy {
-      days = 7
+      days = var.blob_soft_delete_retention_days
     }
   }
 
@@ -149,7 +135,18 @@ locals {
     }
   }
 
-  primary_import_key = contains(keys(local.resolved_import_targets), "primary") ? "primary" : sort(keys(local.resolved_import_targets))[0]
+  first_import_key = local.import_targets_list[0].key
+  first_import     = local.resolved_import_targets[local.first_import_key]
+
+  connect_urls = {
+    for k, t in local.resolved_import_targets : k => join("", [
+      "https://${var.worklytics_host}/analytics/connect/azure-import",
+      "?container=${urlencode(t.storage_container_name)}",
+      "&storageAccount=${urlencode(t.storage_account_name)}",
+      "&clientId=${urlencode(azuread_application.worklytics.client_id)}",
+      "&tenantId=${urlencode(var.azure_tenant_id)}",
+    ])
+  }
 
   # One delegator assignment per distinct existing account (plus the created account).
   # Group so two containers on the same account do not produce duplicate for_each keys.
@@ -226,19 +223,27 @@ locals {
   tenant_identity_note = var.worklytics_tenant_sa_email == null ? var.worklytics_tenant_id : "${var.worklytics_tenant_sa_email} (${var.worklytics_tenant_id})"
 
   import_todo_rows = join("\n", [
-    for k, t in local.resolved_import_targets :
-    "  - ${k}: account `${t.storage_account_name}`, container `${t.storage_container_name}`"
+    for loc in local.import_targets_list :
+    "  - ${loc.key}: account `${local.resolved_import_targets[loc.key].storage_account_name}`, container `${local.resolved_import_targets[loc.key].storage_container_name}`"
   ])
 
-  primary_import = local.resolved_import_targets[local.primary_import_key]
+  connect_todo_rows = join("\n", [
+    for loc in local.import_targets_list :
+    "  - ${loc.key}: `${local.connect_urls[loc.key]}`"
+  ])
+
+  manual_todo_rows = join("\n", [
+    for loc in local.import_targets_list :
+    "  - ${loc.key}: Container `${local.resolved_import_targets[loc.key].storage_container_name}`, Storage Account `${local.resolved_import_targets[loc.key].storage_account_name}`"
+  ])
 
   todo_content = <<EOT
 # Configure Data Import in Worklytics
 
 1. Ensure you're authenticated with Worklytics. Either sign-in at [https://${var.worklytics_host}](https://${var.worklytics_host})
   with your organization's SSO provider *or* request OTP link from your Worklytics support.
-2. Visit `https://${var.worklytics_host}/analytics/data-import/connect?type=AZURE_BLOB_STORAGE&container=${local.primary_import.storage_container_name}&storageAccount=${local.primary_import.storage_account_name}&clientId=${azuread_application.worklytics.client_id}&tenantId=${var.azure_tenant_id}`
-3. Review any additional settings and click "Create Data Import". Repeat for any extra containers.
+2. Open each connect URL below. Choose a parser (or define a custom one) and click Connect:
+${local.connect_todo_rows}
 
 Import landing zones granted to Worklytics:
 ${local.import_todo_rows}
@@ -247,9 +252,9 @@ Alternatively, you may follow the manual instructions below:
 
 1. Visit [https://${var.worklytics_host}](https://${var.worklytics_host})
   (or login into Worklytics, and navigate to Manage --> Import Data).
-2. Create a new Azure Blob Storage import connection with the following values:
-  - Container Name: ${local.primary_import.storage_container_name}
-  - Storage Account: ${local.primary_import.storage_account_name}
+2. Create an Azure Blob Storage import connection for each landing zone:
+${local.manual_todo_rows}
+  Shared values for every connection:
   - Client ID: ${azuread_application.worklytics.client_id}
   - Tenant ID: ${var.azure_tenant_id}
   - Worklytics tenant identity: ${local.tenant_identity_note}

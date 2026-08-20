@@ -20,14 +20,18 @@ Customer-facing usage (Terraform Registry source, your own providers and remote 
 Within `examples/basic/` (eg, here), create a `terraform.tfvars` file with the following content,
 customizing Azure Tenant ID, subscription, resource group, and Worklytics Tenant ID as needed.
 
-Omit `storage_account_name` to have the module create a storage account; set it to reuse one.
+Omit names in `import_containers` (or leave the default) to have the module create a storage
+account and container; pass both names to reuse existing storage.
 
 ```hcl
 worklytics_tenant_id   = "123456712345671234567"
 azure_tenant_id        = "aaaa8888-4444-5555-6666-777777777777"
 azure_subscription_id  = "bbbb9999-4444-5555-6666-777777777777"
 resource_group_name    = "my-resource-group-name"
-# storage_account_name = "myexistingaccount" # optional; omit to create
+# import_containers = [{
+#   storage_account_name   = "myexistingaccount"
+#   storage_container_name = "worklytics-import"
+# }]
 resource_name_prefix   = "my-worklytics-data-import-" # Optional
 ```
 

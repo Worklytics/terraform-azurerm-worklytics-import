@@ -9,11 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial module to set up an Azure Blob Storage landing zone for importing data into Worklytics.
-- Optional creation of a storage account and/or private blob container; existing names are reused
-  when provided. Additional ingest locations via `import_containers`.
+- Optional creation of a storage account and/or private blob containers via `import_containers`
+  (at least one landing zone; omit names to create, or pass existing names to reuse).
 - Entra application, service principal, and Google → Entra federated identity credential keyed by
   the Worklytics tenant's 21-digit GCP service account unique ID.
-- `Storage Blob Data Contributor` on the container and `Storage Blob Delegator` on the account.
+- `Storage Blob Data Contributor` on each container and `Storage Blob Delegator` on each account.
+- Configurable blob soft-delete retention (`blob_soft_delete_retention_days`, default 30) on
+  accounts created by this module.
 - Native `terraform test` unit tests (mocked providers) and a GitHub Actions integration test that
   applies the module in Azure and round-trips a blob as the federated GCP identity.
 - Maintainer release helper (`tools/release.sh`) that tags `origin/main` only after required CI

@@ -12,7 +12,7 @@
 #
 # Prerequisites:
 #   - gcloud authenticated as an identity that can impersonate tenant_sa_email
-#   - curl, jq
+#   - az
 set -euo pipefail
 
 TENANT_SA_EMAIL="${1:?tenant SA email required}"
@@ -25,44 +25,32 @@ CI_RUN="${CI_RUN:-$(date +%Y%m%dT%H%M%S)}"
 BLOB_NAME="ci/${CI_RUN}/test.txt"
 BLOB_BODY="worklytics-import-ci ${CI_RUN}"
 AUDIENCE="api://AzureADTokenExchange"
-TOKEN_URL="https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v2.0/token"
-BLOB_URL="https://${STORAGE_ACCOUNT}.blob.core.windows.net/${CONTAINER}/${BLOB_NAME}"
 
 echo "TENANT_SA_EMAIL: ${TENANT_SA_EMAIL}"
 echo "STORAGE_ACCOUNT: ${STORAGE_ACCOUNT}"
 echo "CONTAINER: ${CONTAINER}"
 echo "BLOB: ${BLOB_NAME}"
 
+# Isolated Azure CLI profile so this login does not replace the workflow's
+# azure/login session (later steps still need az as the CI service principal).
+AZURE_CONFIG_DIR="$(mktemp -d)"
+export AZURE_CONFIG_DIR
+trap 'rm -rf "${AZURE_CONFIG_DIR}"' EXIT
+
 # Identity token whose aud claim matches the Entra federated credential audience.
 GCP_TOKEN="$(gcloud auth print-identity-token \
   --impersonate-service-account="${TENANT_SA_EMAIL}" \
   --audiences="${AUDIENCE}")"
 
-exchange_azure_token() {
-  az login --service-principal \
-    -u "${CLIENT_ID}" \
-    --tenant "${TENANT_ID}" \
-    --federated-token "${GCP_TOKEN}" \
-    --output none \
-    || { echo "Failed to log in with federated token" >&2; return 1; }
-
-  az account get-access-token \
-    --resource "https://storage.azure.com" \
-    --query accessToken -o tsv
-}
-}
-
 retry() {
   local attempt=1
   local max_attempts=12
   local delay=10
-  local output
   while (( attempt <= max_attempts )); do
-    if output="$("$@" 2>&1)"; then
-      printf '%s' "${output}"
+    if "$@"; then
       return 0
     fi
-    echo "Attempt ${attempt}/${max_attempts} failed: ${output}" >&2
+    echo "Attempt ${attempt}/${max_attempts} failed." >&2
     sleep "${delay}"
     delay=$(( delay < 40 ? delay * 2 : 40 ))
     attempt=$(( attempt + 1 ))
@@ -71,30 +59,53 @@ retry() {
   return 1
 }
 
-echo "Exchanging Google ID token for Entra access token..."
-AZURE_TOKEN="$(retry exchange_azure_token)"
+az_federated_login() {
+  az login --service-principal \
+    -u "${CLIENT_ID}" \
+    --tenant "${AZURE_TENANT_ID}" \
+    --federated-token "${GCP_TOKEN}" \
+    --allow-no-subscriptions \
+    --output none
+}
 
-# RBAC on a newly created assignment can take a minute or two to become effective.
 put_blob() {
-  curl -sS -f -X PUT "${BLOB_URL}" \
-    -H "Authorization: Bearer ${AZURE_TOKEN}" \
-    -H "x-ms-version: 2023-11-03" \
-    -H "x-ms-blob-type: BlockBlob" \
-    -H "Content-Type: text/plain" \
-    --data "${BLOB_BODY}"
+  local tmp
+  tmp="$(mktemp)"
+  printf '%s' "${BLOB_BODY}" > "${tmp}"
+  az storage blob upload \
+    --account-name "${STORAGE_ACCOUNT}" \
+    --container-name "${CONTAINER}" \
+    --name "${BLOB_NAME}" \
+    --file "${tmp}" \
+    --auth-mode login \
+    --overwrite \
+    --output none
+  rm -f "${tmp}"
 }
 
 get_blob() {
-  curl -sS -f -X GET "${BLOB_URL}" \
-    -H "Authorization: Bearer ${AZURE_TOKEN}" \
-    -H "x-ms-version: 2023-11-03"
+  az storage blob download \
+    --account-name "${STORAGE_ACCOUNT}" \
+    --container-name "${CONTAINER}" \
+    --name "${BLOB_NAME}" \
+    --file "${DOWNLOAD_FILE}" \
+    --auth-mode login \
+    --no-progress \
+    --output none
 }
 
+echo "Logging in to Azure as the federated Worklytics identity..."
+retry az_federated_login
+
+# RBAC on a newly created assignment can take a minute or two to become effective.
 echo "Writing blob as federated GCP identity..."
 retry put_blob
 
 echo "Reading blob as federated GCP identity..."
-DOWNLOADED="$(retry get_blob)"
+DOWNLOAD_FILE="$(mktemp)"
+retry get_blob
+DOWNLOADED="$(cat "${DOWNLOAD_FILE}")"
+rm -f "${DOWNLOAD_FILE}"
 
 if [[ "${DOWNLOADED}" != "${BLOB_BODY}" ]]; then
   echo "Blob content mismatch." >&2

@@ -1,28 +1,28 @@
 output "storage_account_name" {
-  value       = local.primary_import.storage_account_name
-  description = "Name of the primary Azure storage account used as the import landing zone."
+  value       = local.first_import.storage_account_name
+  description = "Name of the Azure storage account for the first `import_containers` entry."
 }
 
 output "storage_account_id" {
-  value       = local.primary_import.storage_account_id
-  description = "Resource ID of the primary Azure storage account used as the import landing zone."
+  value       = local.first_import.storage_account_id
+  description = "Resource ID of the Azure storage account for the first `import_containers` entry."
 }
 
 output "storage_container_name" {
-  value       = local.primary_import.storage_container_name
-  description = "Name of the primary blob container Worklytics will read from / write to."
+  value       = local.first_import.storage_container_name
+  description = "Name of the blob container for the first `import_containers` entry."
 }
 
 output "storage_container_resource_manager_id" {
-  value       = local.primary_import.storage_container_resource_manager_id
-  description = "ARM resource ID of the primary blob container. Useful for additional role assignments."
+  value       = local.first_import.storage_container_resource_manager_id
+  description = "ARM resource ID of the first import container. Useful for additional role assignments."
 }
 
 output "import_containers" {
   value       = local.resolved_import_targets
   description = <<-EOT
-    Map of all import landing zones keyed by target key (`primary` plus any `import_containers`
-    keys). Each value has account name/id, container name, and container ARM id.
+    Map of all import landing zones keyed by target key. Each value has account name/id,
+    container name, and container ARM id.
   EOT
 }
 

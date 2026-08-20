@@ -37,8 +37,6 @@ module "worklytics_import" {
   azure_tenant_id            = var.azure_tenant_id
   resource_group_name        = var.resource_group_name
   location                   = var.location
-  storage_account_name       = var.storage_account_name
-  storage_container_name     = var.storage_container_name
   import_containers          = var.import_containers
   owners                     = var.owners
   todos_as_local_files       = var.todos_as_local_files

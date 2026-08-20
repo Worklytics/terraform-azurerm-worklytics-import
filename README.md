@@ -18,8 +18,8 @@ configuration and adapt it to your requirements.
 
 ## What it provisions
 
-1. **Storage (Optional)** — an Azure storage account and/or blob container, unless you pass existing
-   names. Additional ingest locations can be passed via `import_containers`.
+1. **Storage (Optional)** — one or more Azure blob containers via `import_containers`. Omit
+   names to create an account and container; pass existing names to only grant Worklytics access.
 2. **Entra application + service principal** with a federated identity credential that trusts your
    Worklytics tenant's GCP service account (`issuer = https://accounts.google.com`,
    `subject = worklytics_tenant_id`).
@@ -75,10 +75,9 @@ provider "azuread" {
 |------|----------|---------|-------------|
 | `worklytics_tenant_id` | yes | | 21-digit unique ID of the Worklytics tenant GCP SA |
 | `azure_tenant_id` | yes | | Entra tenant ID (for instructions / deep-link) |
-| `resource_group_name` | yes | | Existing resource group for the storage account |
-| `storage_account_name` | no | `null` | Reuse this account for the primary zone; otherwise one is created |
-| `storage_container_name` | no | `null` | Reuse this container for the primary zone; otherwise one is created |
-| `import_containers` | no | `[]` | Extra import landing zones (create or reuse each) |
+| `resource_group_name` | yes | | Existing resource group for created storage and lookups |
+| `import_containers` | no | `[{}]` | Landing zones; omit names to create, or pass existing names to reuse. At least one required |
+| `blob_soft_delete_retention_days` | no | `30` | Soft-delete recovery window on a *created* account (not a live-object TTL) |
 | `location` | no | RG location | Region used only when creating a storage account |
 | `worklytics_tenant_sa_email` | no | `null` | SA email, documentation only |
 | `resource_name_prefix` | no | `worklytics-import-` | Prefix for created Entra / container names |
@@ -95,14 +94,14 @@ gcloud iam service-accounts describe EMAIL --format='value(uniqueId)'
 ## Outputs
 
 #### `storage_account_name` / `storage_account_id`
-The storage account used as the import landing zone (created or reused).
+The storage account for the first `import_containers` entry (created or reused).
 
 #### `storage_container_name` / `storage_container_resource_manager_id`
-The primary blob container Worklytics reads from and writes to.
+The blob container for the first `import_containers` entry.
 
 #### `import_containers`
-Map of every import landing zone (the primary zone plus any `import_containers` inputs), keyed by
-target key. Use this when composing extra RBAC or when the customer has several ingest locations.
+Map of every import landing zone, keyed by target key. Use this when composing extra RBAC or when
+the customer has several ingest locations.
 
 #### `application_client_id`
 Entra application (client) ID. Worklytics uses this when exchanging a Google ID token for an Azure
@@ -131,17 +130,22 @@ If you find incompatibilities, please open an issue.
 
 ### Existing storage account / container
 
-Pass both names to skip storage creation and only grant Worklytics access:
+Pass both names in `import_containers` to skip storage creation and only grant Worklytics access:
 
 ```hcl
 module "worklytics_import" {
   source = "Worklytics/worklytics-import/azurerm"
 
-  worklytics_tenant_id   = "123456789012345678901"
-  azure_tenant_id        = "11111111-1111-1111-1111-111111111111"
-  resource_group_name    = "worklytics"
-  storage_account_name   = "myexistingaccount"
-  storage_container_name = "worklytics-import"
+  worklytics_tenant_id = "123456789012345678901"
+  azure_tenant_id      = "11111111-1111-1111-1111-111111111111"
+  resource_group_name  = "worklytics"
+
+  import_containers = [
+    {
+      storage_account_name   = "myexistingaccount"
+      storage_container_name = "worklytics-import"
+    }
+  ]
 }
 ```
 
@@ -150,24 +154,26 @@ account.
 
 ### Multiple import containers
 
-Keep the singular variables for the primary landing zone and pass extra locations:
+Pass every landing zone in `import_containers`. Omit names on an item to create that zone; pass
+both names to reuse an existing container:
 
 ```hcl
 module "worklytics_import" {
   source = "Worklytics/worklytics-import/azurerm"
 
-  worklytics_tenant_id   = "123456789012345678901"
-  azure_tenant_id        = "11111111-1111-1111-1111-111111111111"
-  resource_group_name    = "worklytics"
-  storage_account_name   = "myexistingaccount"
-  storage_container_name = "worklytics-import"
+  worklytics_tenant_id = "123456789012345678901"
+  azure_tenant_id      = "11111111-1111-1111-1111-111111111111"
+  resource_group_name  = "worklytics"
 
   import_containers = [
+    { key = "hris" },
     {
+      key                    = "badge"
       storage_account_name   = "myexistingaccount"
-      storage_container_name = "worklytics-import-hris"
+      storage_container_name = "worklytics-import-badge"
     },
     {
+      key                    = "calendar"
       resource_group_name    = "other-rg"
       storage_account_name   = "anotheraccount"
       storage_container_name = "worklytics-import-calendar"
@@ -176,9 +182,7 @@ module "worklytics_import" {
 }
 ```
 
-If `import_containers` is set and both singular names are omitted, only the list is used (no extra
-created primary). To create a landing zone *and* attach existing ones, include a list item with
-omitted names, or set the singular variables for the created/reused primary.
+The generated Worklytics connect TODO includes a URL per container.
 
 ### Permissions granted to Worklytics
 
