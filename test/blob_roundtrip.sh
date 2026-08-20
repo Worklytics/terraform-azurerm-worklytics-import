@@ -39,22 +39,17 @@ GCP_TOKEN="$(gcloud auth print-identity-token \
   --audiences="${AUDIENCE}")"
 
 exchange_azure_token() {
-  local response access_token
-  response="$(curl -sS -X POST "${TOKEN_URL}" \
-    -H "Content-Type: application/x-www-form-urlencoded" \
-    --data-urlencode "client_id=${CLIENT_ID}" \
-    --data-urlencode "scope=https://storage.azure.com/.default" \
-    --data-urlencode "client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer" \
-    --data-urlencode "client_assertion=${GCP_TOKEN}" \
-    --data-urlencode "grant_type=client_credentials")"
+  az login --service-principal \
+    -u "${CLIENT_ID}" \
+    --tenant "${TENANT_ID}" \
+    --federated-token "${GCP_TOKEN}" \
+    --output none \
+    || { echo "Failed to log in with federated token" >&2; return 1; }
 
-  access_token="$(printf '%s' "${response}" | jq -r '.access_token // empty')"
-  if [[ -z "${access_token}" || "${access_token}" == "null" ]]; then
-    echo "Failed to exchange Google ID token for an Entra access token:" >&2
-    printf '%s' "${response}" | jq -c 'del(.access_token)' >&2 || printf '%s\n' "${response}" >&2
-    return 1
-  fi
-  printf '%s' "${access_token}"
+  az account get-access-token \
+    --resource "https://storage.azure.com" \
+    --query accessToken -o tsv
+}
 }
 
 retry() {
