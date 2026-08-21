@@ -48,3 +48,4 @@ jobs:
           format: table
           severity: CRITICAL,HIGH
           exit-code: '1'          # fail the job on CRITICAL or HIGH findings
+          trivyignores: .trivyignore
