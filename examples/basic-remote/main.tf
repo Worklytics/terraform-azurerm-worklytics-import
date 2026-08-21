@@ -10,6 +10,8 @@ module "worklytics_import" {
   azure_tenant_id     = "11111111-1111-1111-1111-111111111111"
   resource_group_name = "worklytics"
 
+  # Import only (customer Azure → Worklytics). For Worklytics → Azure, use
+  # Worklytics/worklytics-export/azurerm.
   # omit names in import_containers to create an account and container
   # import_containers = [{
   #   storage_account_name   = "myexistingaccount"

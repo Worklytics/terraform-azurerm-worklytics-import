@@ -9,7 +9,8 @@ variable "worklytics_tenant_id" {
   description = <<-EOT
     Numeric unique ID of your Worklytics tenant's GCP service account (obtain from the Worklytics
     app). This is a 21-digit value used as the subject of the Entra federated identity credential.
-    It is the same identifier used by the AWS/Azure export modules; it is *not* the SA email.
+    It is the same identifier used by other Worklytics Terraform modules (including
+    terraform-azurerm-worklytics-export); it is *not* the SA email.
   EOT
 
   validation {

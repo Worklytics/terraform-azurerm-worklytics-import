@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0] - Unreleased
 
+### Changed
+- Document that this module is import-only (customer premises → Worklytics). Outbound data
+  (Worklytics → customer premises) uses [`terraform-azurerm-worklytics-export`](https://github.com/Worklytics/terraform-azurerm-worklytics-export).
+
 ### Added
 - Initial module to set up Azure Blob Storage containers for importing data into Worklytics.
 - Optional creation of a storage account and/or private blob containers via `import_containers`

@@ -199,6 +199,7 @@ resource "azuread_application_federated_identity_credential" "worklytics" {
 }
 
 # Read/write blobs in each import container (ingest + status/checkpoint objects).
+# This is not a data-export grant; outbound dumps use terraform-azurerm-worklytics-export.
 # azuread 3.x `id` is `/servicePrincipals/{guid}`; Azure RBAC requires the object GUID.
 resource "azurerm_role_assignment" "import_contributor" {
   for_each = local.resolved_import_targets
@@ -239,6 +240,10 @@ locals {
 
   todo_content = <<EOT
 # Configure Data Import in Worklytics
+
+This connection pulls files **from your Azure blob containers into Worklytics**
+(customer premises → Worklytics). It is not a data export. To send results or dumps from
+Worklytics into Azure, use the `Worklytics/worklytics-export/azurerm` module instead.
 
 1. Ensure you're authenticated with Worklytics. Either sign-in at [https://${var.worklytics_host}](https://${var.worklytics_host})
   with your organization's SSO provider *or* request OTP link from your Worklytics support.
