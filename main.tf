@@ -140,6 +140,7 @@ locals {
 
   connect_urls = {
     for k, t in local.resolved_import_targets : k => join("", [
+      # Production connect flow (not /analytics/data-import/connect, not a *-dev host).
       "https://${var.worklytics_host}/analytics/connect/azure-import",
       "?container=${urlencode(t.storage_container_name)}",
       "&storageAccount=${urlencode(t.storage_account_name)}",

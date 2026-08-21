@@ -134,6 +134,11 @@ variable "worklytics_host" {
   type        = string
   description = "Host of the Worklytics instance where the tenant resides (e.g. app.worklytics.co)."
   default     = "app.worklytics.co"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$", var.worklytics_host))
+    error_message = "`worklytics_host` must be a hostname (e.g. app.worklytics.co), not a URL."
+  }
 }
 
 variable "todos_as_outputs" {

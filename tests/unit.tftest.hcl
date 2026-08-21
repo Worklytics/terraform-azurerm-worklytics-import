@@ -304,8 +304,8 @@ run "todo_uses_azure_import_connect_path" {
   }
 
   assert {
-    condition     = strcontains(output.todo_markdown, "/analytics/connect/azure-import?")
-    error_message = "TODO should deep-link to /analytics/connect/azure-import."
+    condition     = strcontains(output.todo_markdown, "https://app.worklytics.co/analytics/connect/azure-import?")
+    error_message = "TODO should deep-link to production app.worklytics.co /analytics/connect/azure-import."
   }
 
   assert {
@@ -322,6 +322,43 @@ run "todo_uses_azure_import_connect_path" {
     condition     = strcontains(output.todo_markdown, "Choose a parser")
     error_message = "TODO should tell the customer to choose a parser."
   }
+}
+
+run "todo_uses_custom_worklytics_host" {
+  command = apply
+
+  variables {
+    todos_as_outputs = true
+    worklytics_host  = "analytics.example.com"
+    import_containers = [
+      {
+        storage_account_name   = "existingacct0001"
+        storage_container_name = "worklytics-import-hris"
+      }
+    ]
+  }
+
+  assert {
+    condition     = strcontains(output.todo_markdown, "https://analytics.example.com/analytics/connect/azure-import?")
+    error_message = "TODO should use worklytics_host when overridden (custom domain)."
+  }
+
+  assert {
+    condition     = !strcontains(output.todo_markdown, "https://app.worklytics.co/")
+    error_message = "Custom worklytics_host should replace the production default in TODOs."
+  }
+}
+
+run "rejects_worklytics_host_url" {
+  command = plan
+
+  variables {
+    worklytics_host = "https://app.worklytics.co"
+  }
+
+  expect_failures = [
+    var.worklytics_host,
+  ]
 }
 
 run "rejects_invalid_import_containers_account_name" {

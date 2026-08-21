@@ -95,6 +95,7 @@ provider "azuread" {
 | `worklytics_tenant_sa_email` | no | `null` | SA email, documentation only |
 | `resource_name_prefix` | no | `worklytics-import-` | Prefix for created Entra / container names |
 | `owners` | no | `[]` | Entra object IDs set as owners of the application |
+| `worklytics_host` | no | `app.worklytics.co` | Hostname for connect TODOs / deep-links (prod by default; override for a custom domain) |
 
 Your Worklytics tenant identity is the **numeric unique ID** of the tenant's GCP service account
 (the same value used by other Worklytics Terraform modules, including the Azure *export* module). The SA email cannot be used as the
