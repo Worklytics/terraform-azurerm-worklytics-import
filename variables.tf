@@ -94,6 +94,26 @@ variable "import_containers" {
   }
 }
 
+variable "blob_auto_delete_after_days" {
+  type        = number
+  nullable    = true
+  description = <<-EOT
+    Days after blob *creation* after which objects on a storage account *created* by this module
+    are automatically deleted (Azure Blob lifecycle). Default is 5 years (1825 days). Set `null`
+    to omit a lifecycle policy entirely. This does not prevent deleting objects sooner; it is not
+    a minimum-retention / legal-hold lock. Ignored when reusing an existing account.
+  EOT
+  default     = 1825
+
+  validation {
+    condition = (
+      var.blob_auto_delete_after_days == null
+      || (var.blob_auto_delete_after_days >= 1 && var.blob_auto_delete_after_days <= 99999)
+    )
+    error_message = "`blob_auto_delete_after_days` must be between 1 and 99999, or null to omit auto-delete."
+  }
+}
+
 variable "blob_soft_delete_retention_days" {
   type        = number
   description = <<-EOT

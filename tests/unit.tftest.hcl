@@ -33,6 +33,12 @@ mock_provider "azurerm" {
     }
   }
 
+  mock_resource "azurerm_storage_management_policy" {
+    defaults = {
+      id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-worklytics-import-test/providers/Microsoft.Storage/storageAccounts/createdacct0001/managementPolicies/default"
+    }
+  }
+
   mock_resource "azurerm_role_assignment" {
     defaults = {
       id = "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/roleAssignments/00000000-0000-0000-0000-000000000099"
@@ -91,6 +97,11 @@ run "creates_storage_when_omitted" {
   }
 
   assert {
+    condition     = length(azurerm_storage_management_policy.import) == 1
+    error_message = "Expected a 5-year auto-delete lifecycle policy on a created account."
+  }
+
+  assert {
     condition = alltrue([
       for ra in azurerm_role_assignment.import_contributor :
       ra.role_definition_name == "Storage Blob Data Contributor"
@@ -137,6 +148,11 @@ run "reuses_existing_storage_account" {
     condition     = length(azurerm_storage_container.import) == 1
     error_message = "Should still create a container when only the account is reused."
   }
+
+  assert {
+    condition     = length(azurerm_storage_management_policy.import) == 0
+    error_message = "Must not attach a lifecycle policy to an existing storage account."
+  }
 }
 
 run "reuses_existing_account_and_container" {
@@ -164,6 +180,24 @@ run "reuses_existing_account_and_container" {
   assert {
     condition     = output.storage_container_name == "already-there"
     error_message = "Output container name should match the provided existing container."
+  }
+}
+
+run "omits_auto_delete_when_null" {
+  command = plan
+
+  variables {
+    blob_auto_delete_after_days = null
+  }
+
+  assert {
+    condition     = length(azurerm_storage_account.worklytics) == 1
+    error_message = "Should still create a storage account when auto-delete is omitted."
+  }
+
+  assert {
+    condition     = length(azurerm_storage_management_policy.import) == 0
+    error_message = "A null blob_auto_delete_after_days must omit the lifecycle policy."
   }
 }
 

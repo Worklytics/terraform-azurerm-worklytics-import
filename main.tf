@@ -97,6 +97,28 @@ resource "azurerm_storage_account" "worklytics" {
   }
 }
 
+# Auto-delete live blobs after N days (default 5 years). Not a minimum-retention lock:
+# customers can still delete objects at any time. Omitted when reusing an existing account
+# or when blob_auto_delete_after_days is null.
+resource "azurerm_storage_management_policy" "import" {
+  count = local.create_storage_account && var.blob_auto_delete_after_days != null ? 1 : 0
+
+  storage_account_id = azurerm_storage_account.worklytics[0].id
+
+  rule {
+    name    = "auto-delete"
+    enabled = true
+    filters {
+      blob_types = ["blockBlob"]
+    }
+    actions {
+      base_blob {
+        delete_after_days_since_creation_greater_than = var.blob_auto_delete_after_days
+      }
+    }
+  }
+}
+
 locals {
   created_storage_account_name = local.create_storage_account ? azurerm_storage_account.worklytics[0].name : null
   created_storage_account_id   = local.create_storage_account ? azurerm_storage_account.worklytics[0].id : null

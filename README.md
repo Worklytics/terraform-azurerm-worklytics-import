@@ -90,6 +90,7 @@ provider "azuread" {
 | `azure_tenant_id` | yes | | Entra tenant ID (for instructions / deep-link) |
 | `resource_group_name` | yes | | Existing resource group for created storage and lookups |
 | `import_containers` | no | `[{}]` | Blob containers to import from; omit names to create, or pass existing names to reuse. At least one required |
+| `blob_auto_delete_after_days` | no | `1825` (5 years) | Auto-delete blobs on a *created* account after this many days since creation; `null` omits the policy. Does not block earlier deletes |
 | `blob_soft_delete_retention_days` | no | `30` | Soft-delete recovery window on a *created* account (not a live-object TTL) |
 | `location` | no | RG location | Region used only when creating a storage account |
 | `worklytics_tenant_sa_email` | no | `null` | SA email, documentation only |
@@ -165,6 +166,13 @@ module "worklytics_import" {
 
 If you omit only `storage_container_name`, the module creates a private container on the existing
 account.
+
+### Auto-delete (max age)
+
+Accounts *created* by this module get a lifecycle rule that deletes block blobs 5 years after
+creation (`blob_auto_delete_after_days = 1825`). Lower that value to expire sooner, or set it to
+`null` to skip a lifecycle policy. This never blocks you from deleting objects yourself, and is
+not applied to existing accounts you pass in.
 
 ### Multiple import containers
 
