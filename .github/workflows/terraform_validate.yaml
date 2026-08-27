@@ -1,0 +1,71 @@
+name: terraform_validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'rc-*'
+
+jobs:
+  tf_validate:
+    name: 'Terraform validate (on tf ${{ matrix.terraform_version }})'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        terraform_version: [ '~1.3.0', '~1.5.0', '~1.7.0', '~1.9.0', '~1.12.0', 'latest' ]
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: 'setup Terraform'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ matrix.terraform_version }}
+
+      - name: 'Terraform - validate examples/basic'
+        working-directory: examples/basic
+        run: |
+          terraform init
+          terraform validate
+
+  # Native `terraform test` unit tests (mocked providers). Requires Terraform >= 1.7.
+  tf_unit:
+    name: 'Terraform unit tests'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: 'setup Terraform'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: latest
+          terraform_wrapper: false
+
+      - name: 'Terraform test (unit)'
+        run: |
+          terraform init -backend=false
+          terraform test
+
+  # Branch protection requires a check named exactly "Terraform validate".
+  validate_gate:
+    name: Terraform validate
+    needs: [tf_validate, tf_unit]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Require validate matrix + unit tests success
+        run: |
+          echo "tf_validate=${{ needs.tf_validate.result }}"
+          echo "tf_unit=${{ needs.tf_unit.result }}"
+          test "${{ needs.tf_validate.result }}" = "success"
+          test "${{ needs.tf_unit.result }}" = "success"

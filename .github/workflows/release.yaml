@@ -1,0 +1,30 @@
+# GitHub Release notes for humans (README badge, changelog UI).
+# Terraform Registry versions come from the git tag itself, not this workflow.
+# Cut tags with ./tools/release.sh so they land on origin/main after CI is green.
+name: Create Release on Tag v{MAJOR}.{MINOR}.{PATCH}
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  create_release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            echo "Release ${{ github.ref_name }} already exists; skipping."
+            exit 0
+          fi
+          gh release create "${{ github.ref_name }}" \
+            -t "${{ github.ref_name }}" \
+            --generate-notes
