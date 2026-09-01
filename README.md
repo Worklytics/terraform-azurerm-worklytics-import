@@ -221,13 +221,7 @@ See [examples/basic-remote/](examples/basic-remote/) for Registry usage, or
 ### Releasing
 
 Registry versions are **git tags** (`vX.Y.Z`) on `main`, not GitHub Releases. After a change is on
-`main` and CI is green:
-
-```bash
-./tools/release.sh v0.1.0 --wait
-```
-
-That tags the current `origin/main` commit and pushes the tag. The tag-triggered workflow creates
+`main` and CI is green, tag `origin/main` and push the tag. The tag-triggered workflow creates
 the GitHub Release (notes / README badge). The public registry
 ([Worklytics/worklytics-import/azurerm](https://registry.terraform.io/modules/Worklytics/worklytics-import/azurerm))
 indexes new tags via webhook.
