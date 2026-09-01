@@ -37,7 +37,7 @@ Tag origin/main and push the tag so:
   2. .github/workflows/release.yaml can create the GitHub Release notes
 
 Does not create the GitHub Release itself (that would race the workflow).
-Does not publish to registry.terraform.io; first listing is a one-time UI step.
+The public registry indexes the new tag via webhook.
 
 Options:
   --wait      Poll until required checks on origin/main complete (default: fail if pending)
@@ -237,7 +237,7 @@ tag_and_push() {
   git tag -a "$VERSION" -m "Release ${VERSION}"
   git push origin "$VERSION"
   info "${GREEN}Pushed tag ${BLUE}${VERSION}${RESET}${GREEN} at ${BLUE}${sha}${RESET}${GREEN}.${RESET}"
-  info "GitHub Actions should create the GitHub Release; Terraform Registry will index the tag once the module is listed."
+  info "GitHub Actions should create the GitHub Release; Terraform Registry will index the tag."
 }
 
 main() {

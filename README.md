@@ -21,8 +21,8 @@ Worklytics should pull). If you use Worklytics with a [Psoxy] proxy, do not use 
 that path: the [proxy Terraform modules] already provide equivalent functionality for connecting
 sanitized data to Worklytics.
 
-It is intended for the [Terraform Registry](https://registry.terraform.io/modules/Worklytics/worklytics-import/azurerm/latest)
-(`Worklytics/worklytics-import/azurerm`).
+It is published on the [Terraform Registry](https://registry.terraform.io/modules/Worklytics/worklytics-import/azurerm/latest)
+as `Worklytics/worklytics-import/azurerm`.
 
 If it does not meet your needs, feel free to directly copy the `main.tf` file into your own Terraform
 configuration and adapt it to your requirements.
@@ -44,24 +44,12 @@ export.
 
 ## Usage
 
-from Terraform registry (once published):
 ```hcl
 module "worklytics_import" {
   source  = "Worklytics/worklytics-import/azurerm"
   version = "~> 0.1.0"
 
   # numeric ID of your Worklytics Tenant SA (21-digit unique ID, not the email)
-  worklytics_tenant_id = "123456789012345678901"
-  azure_tenant_id      = "11111111-1111-1111-1111-111111111111"
-  resource_group_name  = "worklytics"
-}
-```
-
-via GitHub:
-```hcl
-module "worklytics_import" {
-  source = "git::https://github.com/worklytics/terraform-azurerm-worklytics-import/?ref=v0.1.0"
-
   worklytics_tenant_id = "123456789012345678901"
   azure_tenant_id      = "11111111-1111-1111-1111-111111111111"
   resource_group_name  = "worklytics"
@@ -223,11 +211,12 @@ guide our customers in setting up their own infra to import data from Azure Blob
 Worklytics (customer premises → Worklytics). For the reverse path, use
 [`terraform-azurerm-worklytics-export`](https://github.com/Worklytics/terraform-azurerm-worklytics-export).
 
-As this is [published as a Terraform module](https://developer.hashicorp.com/terraform/registry/modules/publish),
+As this is [published as a Terraform module](https://registry.terraform.io/modules/Worklytics/worklytics-import/azurerm),
 we will strive to follow [standard Terraform module structure](https://developer.hashicorp.com/terraform/language/modules/develop/structure)
 and [style conventions](https://developer.hashicorp.com/terraform/language/syntax/style).
 
-See [examples/basic/](examples/basic/) for a simple example of how to use this module.
+See [examples/basic-remote/](examples/basic-remote/) for Registry usage, or
+[examples/basic/](examples/basic/) to apply a local checkout.
 
 ### Releasing
 
@@ -239,10 +228,9 @@ Registry versions are **git tags** (`vX.Y.Z`) on `main`, not GitHub Releases. Af
 ```
 
 That tags the current `origin/main` commit and pushes the tag. The tag-triggered workflow creates
-the GitHub Release (notes / README badge). First-time listing on
-[registry.terraform.io](https://registry.terraform.io/modules/Worklytics/worklytics-import/azurerm)
-is a one-time Publish in the HashiCorp UI (`Worklytics/worklytics-import/azurerm`); later tags are
-picked up by the Registry webhook.
+the GitHub Release (notes / README badge). The public registry
+([Worklytics/worklytics-import/azurerm](https://registry.terraform.io/modules/Worklytics/worklytics-import/azurerm))
+indexes new tags via webhook.
 
 ### Tests
 
