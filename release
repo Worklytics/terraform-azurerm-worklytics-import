@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-# Compat wrapper; the real release helper lives in tools/.
-set -euo pipefail
-exec "$(cd "$(dirname "$0")" && pwd)/tools/release.sh" "$@"

@@ -1,4 +1,4 @@
-# example of consuming this module from the Terraform Registry once published
+# Consume the published module from the Terraform Registry.
 
 module "worklytics_import" {
   source  = "Worklytics/worklytics-import/azurerm"

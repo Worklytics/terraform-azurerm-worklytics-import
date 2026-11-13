@@ -1,6 +1,6 @@
 # GitHub Release notes for humans (README badge, changelog UI).
 # Terraform Registry versions come from the git tag itself, not this workflow.
-# Cut tags with ./tools/release.sh so they land on origin/main after CI is green.
+# Cut tags on origin/main after CI is green.
 name: Create Release on Tag v{MAJOR}.{MINOR}.{PATCH}
 
 on:
