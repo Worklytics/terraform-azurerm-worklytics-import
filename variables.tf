@@ -131,7 +131,7 @@ variable "blob_soft_delete_retention_days" {
 
 variable "owners" {
   type        = set(string)
-  description = "Object IDs set as owners of the Entra application created for Worklytics."
+  description = "Object IDs set as owners of the Entra application created for Worklytics (not the service principal)."
   default     = []
 }
 

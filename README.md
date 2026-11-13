@@ -1,16 +1,32 @@
 # Worklytics Import from Azure Terraform Module
 
-[![Latest Release](https://img.shields.io/github/v/release/Worklytics/terraform-azurerm-worklytics-import)](https://github.com/Worklytics/terraform-azurerm-worklytics-import/releases/latest)
-[![tests](https://img.shields.io/github/actions/workflow/status/Worklytics/terraform-azurerm-worklytics-import/terraform_integration.yaml?label=tests)](https://github.com/Worklytics/terraform-azurerm-worklytics-import/actions?query=branch%3Amain)
+<p>
+  <a href="https://github.com/Worklytics/terraform-azurerm-worklytics-import/releases/latest"><img src="https://img.shields.io/github/v/release/Worklytics/terraform-azurerm-worklytics-import" alt="Latest Release" style="display: inline-block; margin-right: 4px;"></a>
+  <a href="https://github.com/Worklytics/terraform-azurerm-worklytics-import/actions?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/Worklytics/terraform-azurerm-worklytics-import/terraform_integration.yaml?label=tests" alt="tests" style="display: inline-block;"></a>
+</p>
 
 This module creates infra to support **importing** data from [Azure Blob Storage] into Worklytics
 (customer premises → Worklytics). It does **not** set up the reverse path: it does not create an
 export container or grant Worklytics write access for data export.
 
-| Data flow | Module |
-|-----------|--------|
-| Customer premises → Worklytics | this module (`Worklytics/worklytics-import/azurerm`) |
-| Worklytics → customer premises | [`terraform-azurerm-worklytics-export`](https://github.com/Worklytics/terraform-azurerm-worklytics-export) (`Worklytics/worklytics-export/azurerm`) |
+<table>
+  <thead>
+    <tr>
+      <th align="left" style="text-align: left; border: 1px solid #d0d7de; padding: 6px 13px;">Data flow</th>
+      <th align="left" style="text-align: left; border: 1px solid #d0d7de; padding: 6px 13px;">Module</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left; border: 1px solid #d0d7de; padding: 6px 13px;">Customer premises → Worklytics</td>
+      <td style="text-align: left; border: 1px solid #d0d7de; padding: 6px 13px;">this module (<code>Worklytics/worklytics-import/azurerm</code>)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left; border: 1px solid #d0d7de; padding: 6px 13px;">Worklytics → customer premises</td>
+      <td style="text-align: left; border: 1px solid #d0d7de; padding: 6px 13px;"><a href="https://github.com/Worklytics/terraform-azurerm-worklytics-export">terraform-azurerm-worklytics-export</a> (<code>Worklytics/worklytics-export/azurerm</code>)</td>
+    </tr>
+  </tbody>
+</table>
 
 Use the export module if Worklytics should write results or dumps into your Azure tenant. Do not
 compose this import module as a stand-in for that, and do not reuse an import container as an
@@ -83,7 +99,7 @@ provider "azuread" {
 | `location` | no | RG location | Region used only when creating a storage account |
 | `worklytics_tenant_sa_email` | no | `null` | SA email, documentation only |
 | `resource_name_prefix` | no | `worklytics-import-` | Prefix for created Entra / container names |
-| `owners` | no | `[]` | Entra object IDs set as owners of the application |
+| `owners` | no | `[]` | Entra object IDs set as owners of the application (not the service principal) |
 | `worklytics_host` | no | `app.worklytics.co` | Hostname for connect TODOs / deep-links (prod by default; override for a custom domain) |
 
 Your Worklytics tenant identity is the **numeric unique ID** of the tenant's GCP service account

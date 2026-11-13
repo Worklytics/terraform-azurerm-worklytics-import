@@ -209,7 +209,8 @@ resource "azuread_application" "worklytics" {
 resource "azuread_service_principal" "worklytics" {
   client_id = azuread_application.worklytics.client_id
 
-  owners = var.owners
+  # Owners belong on the application only. Setting owners here makes the azuread
+  # provider patch the SP after create; CI principals often lack that permission.
 }
 
 resource "azuread_application_federated_identity_credential" "worklytics" {
