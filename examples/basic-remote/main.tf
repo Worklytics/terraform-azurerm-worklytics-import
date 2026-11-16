@@ -2,7 +2,7 @@
 
 module "worklytics_import" {
   source  = "Worklytics/worklytics-import/azurerm"
-  version = "~> 0.1.0"
+  version = "~> 1.0.0"
 
   # numeric ID of your Worklytics Tenant SA (21-digit unique ID, not the email)
   worklytics_tenant_id = "123123123123123123123"

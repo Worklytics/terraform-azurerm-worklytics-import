@@ -50,6 +50,14 @@ jobs:
                 source  = "hashicorp/azurerm"
                 version = "${{ matrix.azurerm_provider_version }}"
               }
+              azuread = {
+                source  = "hashicorp/azuread"
+                version = ">= 2.47"
+              }
+              local = {
+                source  = "hashicorp/local"
+                version = ">= 2.0"
+              }
             }
           }
           TFEOF
@@ -147,7 +155,7 @@ jobs:
             -var="worklytics_tenant_id=${{ steps.tenant.outputs.id }}" \
             -var="worklytics_tenant_sa_email=${EXAMPLE_TENANT_SA_EMAIL}" \
             -var="resource_name_prefix=${PREFIX}" \
-            -var="todos_as_local_files=false" \
+            -var="write_todo_local_file=false" \
             "${OWNERS_ARGS[@]}"
           echo "storage_account_name=$(terraform output -raw storage_account_name)" >> "$GITHUB_OUTPUT"
           echo "storage_container_name=$(terraform output -raw storage_container_name)" >> "$GITHUB_OUTPUT"
@@ -200,7 +208,7 @@ jobs:
             -var="worklytics_tenant_id=${{ steps.tenant.outputs.id }}" \
             -var="worklytics_tenant_sa_email=${EXAMPLE_TENANT_SA_EMAIL}" \
             -var="resource_name_prefix=${PREFIX}" \
-            -var="todos_as_local_files=false" \
+            -var="write_todo_local_file=false" \
             "${OWNERS_ARGS[@]}"
           fi
 

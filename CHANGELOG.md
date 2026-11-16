@@ -5,23 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<<<<<<< HEAD
-## [0.1.1] - Unreleased
+## [1.0.0] - Unreleased
+
+### Breaking Changes
+- Removed `todos_as_local_files` and the module's `local_file` resource; use the `todo_markdown`
+  output instead (see `examples/basic/` for writing it to disk).
+- Removed `todos_as_outputs`; `todo_markdown` is always emitted.
+- Dropped `hashicorp/local` from module provider requirements.
 
 ### Fixed
 - CI integration apply no longer assigns `owners` on the Entra service principal (avoids a
   post-create Graph patch that failed with 403 for the GitHub OIDC principal).
 - README badges and data-flow table render inline on GitHub and the Terraform Registry.
 
-## [0.1.0] - Unreleased
-=======
-## [0.2.0] - Unreleased
-
-Document the module as published on the Terraform Registry. Remove the in-repo
-release helper; cutting tags is handled by shared tooling.
+### Changed
+- Document the module as published on the Terraform Registry. Remove the in-repo release helper;
+  cutting tags is handled by shared tooling.
 
 ## [0.1.0] - 2026-08-27
->>>>>>> origin/main
 
 Terraform module to import data from Azure Blob Storage into Worklytics (customer premises →
 Worklytics). Published as `Worklytics/worklytics-import/azurerm`.

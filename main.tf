@@ -293,10 +293,3 @@ Entra via workload identity federation as the GCP service account above, then re
 write ingest checkpoints to) those containers.
 EOT
 }
-
-resource "local_file" "todo" {
-  count = var.todos_as_local_files ? 1 : 0
-
-  filename = "TODO - configure import in worklytics.md"
-  content  = local.todo_content
-}

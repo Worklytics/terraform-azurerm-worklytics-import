@@ -75,7 +75,6 @@ variables {
   worklytics_tenant_id = "123456789012345678901"
   azure_tenant_id      = "11111111-1111-1111-1111-111111111111"
   resource_group_name  = "rg-worklytics-import-test"
-  todos_as_local_files = false
 }
 
 run "creates_storage_when_omitted" {
@@ -322,7 +321,6 @@ run "todo_uses_azure_import_connect_path" {
   command = apply
 
   variables {
-    todos_as_outputs = true
     import_containers = [
       {
         key                    = "hris"
@@ -362,7 +360,6 @@ run "todo_uses_custom_worklytics_host" {
   command = apply
 
   variables {
-    todos_as_outputs = true
     worklytics_host  = "analytics.example.com"
     import_containers = [
       {

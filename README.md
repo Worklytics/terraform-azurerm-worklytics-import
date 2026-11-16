@@ -63,7 +63,7 @@ export.
 ```hcl
 module "worklytics_import" {
   source  = "Worklytics/worklytics-import/azurerm"
-  version = "~> 0.1.0"
+  version = "~> 1.0.0"
 
   # numeric ID of your Worklytics Tenant SA (21-digit unique ID, not the email)
   worklytics_tenant_id = "123456789012345678901"
@@ -131,7 +131,8 @@ Object ID of the service principal granted blob access. Compose with additional 
 resources if you use a customer-managed encryption key or extra locks.
 
 #### `todo_markdown`
-Rendered when `todos_as_outputs = true`.
+Post-apply instructions for finishing setup in Worklytics. Write this output to a file in your root
+module if you want a local TODO (see `examples/basic/`).
 
 ## Compatibility
 

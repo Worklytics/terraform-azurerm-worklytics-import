@@ -35,6 +35,9 @@ resource_group_name    = "my-resource-group-name"
 resource_name_prefix   = "my-worklytics-data-import-" # Optional
 ```
 
+By default this example writes `TODO - configure import in worklytics.md` from the module's
+`todo_markdown` output. Set `write_todo_local_file = false` to skip that file.
+
 Then test the example:
 
 ```shell

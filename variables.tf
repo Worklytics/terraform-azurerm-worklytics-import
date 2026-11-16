@@ -161,17 +161,3 @@ variable "worklytics_host" {
   }
 }
 
-variable "todos_as_outputs" {
-  type        = bool
-  description = <<-EOT
-    Whether to render TODOs as outputs (useful if you're using Terraform Cloud/Enterprise, or
-    somewhere else where the filesystem is not readily accessible to you).
-  EOT
-  default     = false
-}
-
-variable "todos_as_local_files" {
-  type        = bool
-  description = "Whether to render TODOs as flat files."
-  default     = true
-}

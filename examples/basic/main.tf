@@ -28,7 +28,7 @@ provider "azuread" {
 module "worklytics_import" {
   # Relative source so CI tests *this* checkout. Published usage:
   #   source  = "Worklytics/worklytics-import/azurerm"
-  #   version = "~> 0.1.0"
+  #   version = "~> 1.0.0"
   source = "../../"
 
   resource_name_prefix       = var.resource_name_prefix
@@ -39,7 +39,13 @@ module "worklytics_import" {
   location                   = var.location
   import_containers          = var.import_containers
   owners                     = var.owners
-  todos_as_local_files       = var.todos_as_local_files
+}
+
+resource "local_file" "todo" {
+  count = var.write_todo_local_file ? 1 : 0
+
+  filename = "TODO - configure import in worklytics.md"
+  content  = module.worklytics_import.todo_markdown
 }
 
 output "storage_account_name" {
@@ -60,4 +66,8 @@ output "application_client_id" {
 
 output "service_principal_object_id" {
   value = module.worklytics_import.service_principal_object_id
+}
+
+output "todo_markdown" {
+  value = module.worklytics_import.todo_markdown
 }
