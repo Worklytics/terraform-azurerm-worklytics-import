@@ -209,7 +209,8 @@ resource "azuread_application" "worklytics" {
 resource "azuread_service_principal" "worklytics" {
   client_id = azuread_application.worklytics.client_id
 
-  owners = var.owners
+  # Owners belong on the application only. Setting owners here makes the azuread
+  # provider patch the SP after create; CI principals often lack that permission.
 }
 
 resource "azuread_application_federated_identity_credential" "worklytics" {
@@ -291,11 +292,4 @@ Write objects you want Worklytics to ingest into the container(s). Worklytics au
 Entra via workload identity federation as the GCP service account above, then reads (and may
 write ingest checkpoints to) those containers.
 EOT
-}
-
-resource "local_file" "todo" {
-  count = var.todos_as_local_files ? 1 : 0
-
-  filename = "TODO - configure import in worklytics.md"
-  content  = local.todo_content
 }

@@ -131,7 +131,7 @@ variable "blob_soft_delete_retention_days" {
 
 variable "owners" {
   type        = set(string)
-  description = "Object IDs set as owners of the Entra application created for Worklytics."
+  description = "Object IDs set as owners of the Entra application created for Worklytics (not the service principal)."
   default     = []
 }
 
@@ -161,17 +161,3 @@ variable "worklytics_host" {
   }
 }
 
-variable "todos_as_outputs" {
-  type        = bool
-  description = <<-EOT
-    Whether to render TODOs as outputs (useful if you're using Terraform Cloud/Enterprise, or
-    somewhere else where the filesystem is not readily accessible to you).
-  EOT
-  default     = false
-}
-
-variable "todos_as_local_files" {
-  type        = bool
-  description = "Whether to render TODOs as flat files."
-  default     = true
-}

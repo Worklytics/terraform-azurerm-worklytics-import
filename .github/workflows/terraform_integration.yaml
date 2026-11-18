@@ -50,6 +50,14 @@ jobs:
                 source  = "hashicorp/azurerm"
                 version = "${{ matrix.azurerm_provider_version }}"
               }
+              azuread = {
+                source  = "hashicorp/azuread"
+                version = ">= 2.47"
+              }
+              local = {
+                source  = "hashicorp/local"
+                version = ">= 2.0"
+              }
             }
           }
           TFEOF
@@ -147,7 +155,7 @@ jobs:
             -var="worklytics_tenant_id=${{ steps.tenant.outputs.id }}" \
             -var="worklytics_tenant_sa_email=${EXAMPLE_TENANT_SA_EMAIL}" \
             -var="resource_name_prefix=${PREFIX}" \
-            -var="todos_as_local_files=false" \
+            -var="write_todo_local_file=false" \
             "${OWNERS_ARGS[@]}"
           echo "storage_account_name=$(terraform output -raw storage_account_name)" >> "$GITHUB_OUTPUT"
           echo "storage_container_name=$(terraform output -raw storage_container_name)" >> "$GITHUB_OUTPUT"
@@ -192,16 +200,28 @@ jobs:
           if [ -n "${CI_RG}" ]; then
             az lock delete --name ci-rg-cannot-delete --resource-group "${CI_RG}" || true
           fi
-          terraform destroy -auto-approve \
-            -var="azure_subscription_id=${AZURE_SUBSCRIPTION_ID}" \
-            -var="azure_tenant_id=${ENTRA_ID_TENANT_ID}" \
-            -var="resource_group_name=${CI_RG}" \
-            -var="location=${LOCATION}" \
-            -var="worklytics_tenant_id=${{ steps.tenant.outputs.id }}" \
-            -var="worklytics_tenant_sa_email=${EXAMPLE_TENANT_SA_EMAIL}" \
-            -var="resource_name_prefix=${PREFIX}" \
-            -var="todos_as_local_files=false" \
+          DESTROY_ARGS=(
+            -var="azure_subscription_id=${AZURE_SUBSCRIPTION_ID}"
+            -var="azure_tenant_id=${ENTRA_ID_TENANT_ID}"
+            -var="resource_group_name=${CI_RG}"
+            -var="location=${LOCATION}"
+            -var="worklytics_tenant_id=${{ steps.tenant.outputs.id }}"
+            -var="worklytics_tenant_sa_email=${EXAMPLE_TENANT_SA_EMAIL}"
+            -var="resource_name_prefix=${PREFIX}"
+            -var="write_todo_local_file=false"
             "${OWNERS_ARGS[@]}"
+          )
+          destroy_failed() {
+            CLIENT_ID="$(terraform output -raw application_client_id 2>/dev/null || true)"
+            if [ -n "${CLIENT_ID}" ]; then
+              echo "Deleting Entra app ${CLIENT_ID} so owned SP is removed before retrying destroy."
+              az ad app delete --id "${CLIENT_ID}" || true
+            fi
+          }
+          if ! terraform destroy -auto-approve "${DESTROY_ARGS[@]}"; then
+            destroy_failed
+            terraform destroy -auto-approve "${DESTROY_ARGS[@]}"
+          fi
           fi
 
   # Branch protection requires a check named exactly "Terraform integration".

@@ -20,5 +20,9 @@ terraform {
       source  = "hashicorp/azuread"
       version = ">= 2.47"
     }
+    local = {
+      source  = "hashicorp/local"
+      version = ">= 2.0"
+    }
   }
 }

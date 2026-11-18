@@ -54,8 +54,8 @@ variable "owners" {
   default     = []
 }
 
-variable "todos_as_local_files" {
+variable "write_todo_local_file" {
   type        = bool
-  description = "Whether to render TODOs as flat files."
+  description = "Whether to write module todo_markdown to a local markdown file in this example."
   default     = true
 }
