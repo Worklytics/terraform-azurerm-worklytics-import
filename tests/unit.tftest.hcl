@@ -360,7 +360,7 @@ run "todo_uses_custom_worklytics_host" {
   command = apply
 
   variables {
-    worklytics_host  = "analytics.example.com"
+    worklytics_host = "analytics.example.com"
     import_containers = [
       {
         storage_account_name   = "existingacct0001"

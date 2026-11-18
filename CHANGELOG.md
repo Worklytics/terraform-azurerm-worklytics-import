@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - CI integration apply no longer assigns `owners` on the Entra service principal (avoids a
   post-create Graph patch that failed with 403 for the GitHub OIDC principal).
+- Integration destroy deletes the Entra app registration when Terraform cannot remove the
+  service principal, so CI teardown succeeds without SP owners.
 - README badges and data-flow table render inline on GitHub and the Terraform Registry.
 
 ### Changed
